@@ -1,5 +1,10 @@
-// bot.js — VizaAI Telegram bot (to'liq versiya: AI matn+hujjat tahlili, viza imkoniyati
-// kalkulyatori, to'liq UZ/RU, pullik kurslar, holatlarni tozalash)
+// bot.js — VizaAI Telegram bot (yakuniy versiya)
+// - Bir ekran (edit-in-place) navigatsiya: eski menyular "uchib ketadi"
+// - Kengaytirilgan viza imkoniyati testi (12 savol)
+// - Chuqurlashtirilgan AI hujjat tahlili
+// - Kurslarni faol reklama qilish (start + AI javoblarida)
+// - To'liq UZ/RU
+//
 // O'rnatish: npm install node-telegram-bot-api @anthropic-ai/sdk dotenv
 // .env: TELEGRAM_BOT_TOKEN=... ANTHROPIC_API_KEY=sk-ant-... ADMIN_CHAT_ID=...
 // Talab: Node.js 18+ (global fetch kerak)
@@ -24,7 +29,7 @@ function getLang(chatId) { return userLang.get(chatId) || 'uz'; }
 
 const T = {
   uz: {
-    welcome: "Assalomu alaykum! VizaAI botiga xush kelibsiz 👋\n\nBu yerda viza imkoniyatingizni tekshirasiz, davlat bo'yicha hujjatlarni olasiz, hujjat fotosini AI bilan tahlil qilasiz, safarni rejalashtirasiz va video darslik yoki tur paketini tanlaysiz.\n\nBoshlash uchun kerakli tugmani bosing:",
+    welcome: "Assalomu alaykum! VizaAI botiga xush kelibsiz 👋\n\nBu yerda viza imkoniyatingizni tekshirasiz, davlat bo'yicha hujjatlarni olasiz, hujjat fotosini AI bilan tahlil qilasiz va video darslik yoki tur paketini tanlaysiz.\n\n🔥 *Eng ommabop*: Shengen video kursi — 199 000 so'm. Yoki barcha kurslar paketi — 999 000 so'm (1 700 000 o'rniga)!\n\nBoshlash uchun kerakli tugmani bosing:",
     menu_chance: "🧠 Viza imkoniyati testi",
     menu_services: "🗂️ Viza xizmatlari",
     menu_docs: "📸 Hujjatni AI tekshirish",
@@ -33,16 +38,17 @@ const T = {
     menu_ai: "🤖 AI yordamchi",
     menu_other: "🚩 Boshqa imkoniyatlar",
     menu_lang: "🌐 Til / Язык",
+    menu_featured: "🔥 Barcha kurslar (-40%)",
     back: "⬅️ Orqaga",
     to_menu: "🏠 Bosh menyu",
-    ask_ai_prompt: "Savolingizni yozing — AI javob beradi. (Bosh menyuga qaytish uchun pastdagi tugmani bosing.)",
+    ask_ai_prompt: "Savolingizni yozing — AI javob beradi.",
     services_head: "Qaysi viza turi kerak?",
     svc_travel_head: "Qaysi mamlakat uchun hujjatlar kerak?",
     svc_work_head: "Qaysi davlatga ishga borasiz?",
     svc_student_head: "Qaysi davlatga o'qishga borasiz?",
     faq_head: "Savolni tanlang:",
-    doc_prompt: "Hujjat (pasport, bank hujjati, anketa va h.k.) fotosini shu yerga yuboring — AI ko'rib, sifati va mos-mosligini tahlil qiladi.\n\n⚠️ Bu AI tahlili — rasmiy tekshiruv emas, taxminiy tavsiya beradi.",
-    doc_analyzing: "🔎 Hujjat tahlil qilinmoqda...",
+    doc_prompt: "Hujjat (pasport, bank hujjati, anketa va h.k.) fotosini shu yerga yuboring — AI batafsil tahlil qiladi: turi, sifati, muammolari va tavsiyalar bilan.\n\n⚠️ Bu AI tahlili — rasmiy tekshiruv emas.",
+    doc_analyzing: "🔎 Hujjat batafsil tahlil qilinmoqda...",
     courses_head: "Qaysi davlat kursi kerak? Narxni bosing:",
     tours_head: "Qaysi yo'nalish tur paketi kerak?",
     other_head: "Boshqa imkoniyatlar:",
@@ -54,12 +60,13 @@ const T = {
     tour_request_ok: "So'rovingiz qabul qilindi! Tur agentligi hamkorimiz siz bilan tez orada bog'lanadi.",
     lead_ok: "✅ So'rovingiz qabul qilindi! Tez orada operatorlarimiz siz bilan bog'lanadi.",
     ai_error: "Kechirasiz, hozir javob berolmayapman. Birozdan keyin qayta urinib ko'ring.",
-    chance_start: "Viza imkoniyati testini boshlaymiz — 6 ta qisqa savol. Har biriga tugma orqali javob bering.",
+    chance_start: "Viza imkoniyati testini boshlaymiz — savollarga tugma orqali javob bering.",
     chance_result_head: "PROFIL MOSLIGI",
     chance_disclaimer: "⚠️ Bu ball viza berilish kafolati emas. Yakuniy qarorni konsullik yoki elchixona qabul qiladi.",
+    chance_cta: "\n\n💡 Profilingizni kuchaytirish uchun mos video kursimiz bor — \"Video darsliklar\" bo'limini ko'ring!",
   },
   ru: {
-    welcome: "Здравствуйте! Добро пожаловать в бот VizaAI 👋\n\nЗдесь вы можете проверить визовые шансы, получить документы по стране, проанализировать фото документа через AI, спланировать поездку и выбрать видеокурс или турпакет.\n\nНажмите нужную кнопку, чтобы начать:",
+    welcome: "Здравствуйте! Добро пожаловать в бот VizaAI 👋\n\nЗдесь вы можете проверить визовые шансы, получить документы по стране, проанализировать фото документа через AI и выбрать видеокурс или турпакет.\n\n🔥 *Самый популярный*: курс по Шенгену — 199 000 сум. Или пакет всех курсов — 999 000 сум (вместо 1 700 000)!\n\nНажмите нужную кнопку, чтобы начать:",
     menu_chance: "🧠 Тест визовых шансов",
     menu_services: "🗂️ Визовые услуги",
     menu_docs: "📸 Проверка документа AI",
@@ -68,16 +75,17 @@ const T = {
     menu_ai: "🤖 AI-помощник",
     menu_other: "🚩 Другие возможности",
     menu_lang: "🌐 Til / Язык",
+    menu_featured: "🔥 Все курсы (-40%)",
     back: "⬅️ Назад",
     to_menu: "🏠 Главное меню",
-    ask_ai_prompt: "Напишите ваш вопрос — AI ответит. (Чтобы вернуться в меню, нажмите кнопку ниже.)",
+    ask_ai_prompt: "Напишите ваш вопрос — AI ответит.",
     services_head: "Какая виза вам нужна?",
     svc_travel_head: "Для какой страны нужны документы?",
     svc_work_head: "В какую страну едете работать?",
     svc_student_head: "В какую страну едете учиться?",
     faq_head: "Выберите вопрос:",
-    doc_prompt: "Отправьте фото документа (паспорт, банковский документ, анкета и т.д.) — AI проверит качество и соответствие.\n\n⚠️ Это AI-анализ — не официальная проверка, а примерная рекомендация.",
-    doc_analyzing: "🔎 Документ анализируется...",
+    doc_prompt: "Отправьте фото документа (паспорт, банковский документ, анкета и т.д.) — AI подробно проанализирует: тип, качество, проблемы и рекомендации.\n\n⚠️ Это AI-анализ — не официальная проверка.",
+    doc_analyzing: "🔎 Документ подробно анализируется...",
     courses_head: "Какой курс по стране нужен? Нажмите цену:",
     tours_head: "Какое направление турпакета интересует?",
     other_head: "Другие возможности:",
@@ -89,14 +97,15 @@ const T = {
     tour_request_ok: "Заявка принята! Наш партнёр-турагентство скоро свяжется с вами.",
     lead_ok: "✅ Заявка принята! Скоро наши операторы свяжутся с вами.",
     ai_error: "Извините, сейчас не могу ответить. Попробуйте немного позже.",
-    chance_start: "Начинаем тест визовых шансов — 6 коротких вопросов. Отвечайте кнопками.",
+    chance_start: "Начинаем тест визовых шансов — отвечайте кнопками.",
     chance_result_head: "СООТВЕТСТВИЕ ПРОФИЛЯ",
     chance_disclaimer: "⚠️ Этот балл не является гарантией визы. Окончательное решение принимает консульство или посольство.",
+    chance_cta: "\n\n💡 Чтобы усилить профиль, у нас есть подходящий видеокурс — загляните в раздел \"Видеокурсы\"!",
   },
 };
 
 // ---------------------------------------------------------------
-// SAYTDAGI HAQIQIY MA'LUMOTLAR (index.html bilan bir xil manba)
+// SAYTDAGI HAQIQIY MA'LUMOTLAR
 // ---------------------------------------------------------------
 const COUNTRIES = [
   { key:"japan", flag:"🇯🇵", name:"Yaponiya", nameRu:"Япония", items:[
@@ -219,9 +228,6 @@ const FAQ_DATA = [
    "Как произвести оплату?", "Способы оплаты платных услуг (видеокурсы, премиум-консультация) будут объявлены в ближайшее время."],
 ];
 
-// ---------------------------------------------------------------
-// KURS KANALLARI (video darsliklar)
-// ---------------------------------------------------------------
 const COURSE_CHANNELS = {
   kurs_shengen:    { name: 'Shengen vizasi: to‘liq kurs',       nameRu: 'Виза Шенген: полный курс',        price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_SHENGEN' },
   kurs_yaponiya:   { name: 'Yaponiya turistik vizasi',          nameRu: 'Туристическая виза Японии',       price: '149 000 so‘m', link: 'HAVOLA_BU_YERGA_YAPONIYA' },
@@ -243,106 +249,158 @@ const TOUR_PACKAGES = {
 };
 
 // ---------------------------------------------------------------
-// AI SYSTEM PROMPT — VizaAI xizmati haqida to'liq ma'lumot bilan
+// AI SYSTEM PROMPT — kurslarni faol targ'ib qiluvchi
 // ---------------------------------------------------------------
 function buildSystemPrompt(lang) {
   const langName = lang === 'ru' ? 'ruscha (rus tilida)' : "o'zbekcha";
   return `Siz VizaAI — viza va sayohat tayyorgarligi bo'yicha Telegram yordamchisiz. ${langName} tilda, qisqa (3-6 gap) va aniq javob bering.
 
-VIZAAI HAQIDA TO'LIQ MA'LUMOT (savol shu haqida bo'lsa ishlating):
-- VizaAI — AI yordamida viza hujjatlarini tayyorlash, tekshirish va sayohat rejalashtirish platformasi (sayt: ${SITE_URL}).
-- Bepul xizmatlar: har bir davlat/toifa uchun hujjatlar checklisti (bot menyusidagi "Viza xizmatlari"), AI yordamchi (shu chat), viza imkoniyati testi.
-- Pullik xizmatlar — video darsliklar (bot menyusidagi "Video darsliklar"): Shengen (199 000 so'm), Yaponiya (149 000), AQSH B1/B2 (299 000), Buyuk Britaniya (199 000), Talaba vizasi (159 000), Ishchi viza (169 000), Hong Kong (59 000), Avstraliya (299 000), Kanada (299 000), yoki barcha kurslar paketi (999 000 so'm, alohida sotib olishdan ancha arzon).
+VIZAAI HAQIDA:
+- Bepul: hujjatlar checklisti, AI yordamchi (shu chat), viza imkoniyati testi.
+- PULLIK VIDEO KURSLAR (bularni faol tavsiya qiling — bu bizning asosiy daromad manbai):
+  Shengen (199 000 so'm), Yaponiya (149 000), AQSH B1/B2 (299 000), Buyuk Britaniya (199 000),
+  Talaba vizasi (159 000), Ishchi viza (169 000), Hong Kong (59 000), Avstraliya (299 000), Kanada (299 000),
+  yoki BARCHA KURSLAR PAKETI — 999 000 so'm (1 700 000 o'rniga, ~40% chegirma).
 - Tur paketlar: Turkiya ($599), Vyetnam ($699), Yevropa ($1799), Yaponiya ($1250).
-- Premium konsultatsiya — hamkor mutaxassis bilan shaxsiy maslahat (saytda "Premium konsultatsiya" tugmasi orqali).
+- Premium konsultatsiya — hamkor mutaxassis bilan shaxsiy maslahat.
+
+MUHIM QOIDA — KURSLARNI REKLAMA QILISH:
+Deyarli har bir javobingiz oxirida, mavzuga mos keladigan aniq video kursni **qisqa va tabiiy** tarzda eslatib o'ting.
+Masalan: agar Shengen haqida so'ralsa — "Shengen bo'yicha to'liq video kursimiz bor (199 000 so'm) — barcha bosqichlarni bosqichma-bosqich ko'rsatadi."
+Agar umumiy savol bo'lsa — "Barcha kurslar paketini ko'rib chiqing — 999 000 so'mga 9 ta davlat kursi, 40% chegirma bilan."
+Bu majburiy emas, lekin JUDA tavsiya etiladi — bizning maqsadimiz odamlarni kurslarga yo'naltirish.
 
 QOIDALAR:
-- Viza kafolatlanishi haqida HECH QACHON va'da bermang — yakuniy qaror doim konsullik/elchixonaga tegishli ekanini eslatib turing.
-- Agar foydalanuvchining savoli tegishli video kursga mos kelsa (masalan aynan bitta davlat haqida chuqur/qadam-baqadam yordam so'rasa), o'sha kursni **tabiiy va foydali tarzda**, majburlamasdan tavsiya qiling — masalan "Bu mavzu bo'yicha to'liq video kursimiz ham bor, xohlasangiz 'Video darsliklar' menyusidan ko'rishingiz mumkin."
+- Viza kafolatlanishi haqida HECH QACHON va'da bermang.
 - Agar savol viza/sayohat/hujjatlarga aloqasi bo'lmasa, muloyimlik bilan mavzuga qaytaring.`;
 }
 
 // ---------------------------------------------------------------
-// FOYDALANUVCHI HOLATI (state machine)
-// mode: 'idle' | 'ai' | 'doc' | 'chance'
+// FOYDALANUVCHI HOLATI
 // ---------------------------------------------------------------
-const userState = new Map(); // chatId -> { mode, chanceStep, chanceScore: {} }
+const userState = new Map(); // chatId -> { mode, chanceStep, chanceScore, screenMsgId }
 function getState(chatId) {
-  if (!userState.has(chatId)) userState.set(chatId, { mode: 'idle', chanceStep: 0, chanceScore: {} });
+  if (!userState.has(chatId)) userState.set(chatId, { mode: 'idle', chanceStep: 0, chanceScore: {}, screenMsgId: null });
   return userState.get(chatId);
 }
-// Har qanday menyu navigatsiyasida oldingi "kutilayotgan" so'rovlarni bekor qilamiz
 function clearPendingState(chatId) {
   const s = getState(chatId);
-  s.mode = 'idle';
-  s.chanceStep = 0;
-  s.chanceScore = {};
+  s.mode = 'idle'; s.chanceStep = 0; s.chanceScore = {};
 }
 
 const conversations = new Map();
 const pendingPurchases = new Map();
 
 // ---------------------------------------------------------------
-// VIZA IMKONIYATI TESTI — savollar va ballash
+// BIR-EKRAN NAVIGATSIYA — eski menyu xabari tahrirlanadi (uchib ketadi)
+// ---------------------------------------------------------------
+async function renderScreen(chatId, text, keyboard, opts = {}) {
+  const s = getState(chatId);
+  const options = { reply_markup: keyboard, parse_mode: opts.parse_mode };
+
+  if (s.screenMsgId) {
+    try {
+      await bot.editMessageText(text, { chat_id: chatId, message_id: s.screenMsgId, ...options });
+      return;
+    } catch (e) {
+      // Tahrirlab bo'lmadi (masalan eski xabar o'chirilgan) — yangisini yuboramiz
+    }
+  }
+  const sent = await bot.sendMessage(chatId, text, options);
+  s.screenMsgId = sent.message_id;
+}
+
+// Kontent xabarlari (AI javobi, hujjat tahlili, xarid tasdig'i) — alohida, yangi
+// xabar sifatida yuboriladi (bular "natija", navigatsiya emas), lekin keyingi
+// navigatsiya ularni ham "orqaga" tugmasi bosilganda tozalaydi.
+async function sendContent(chatId, text, opts = {}) {
+  const sent = await bot.sendMessage(chatId, text, { parse_mode: opts.parse_mode, reply_markup: opts.reply_markup });
+  return sent;
+}
+
+// ---------------------------------------------------------------
+// VIZA IMKONIYATI TESTI — 12 ta savol, 4 toifa (site Smart Lab'ga mos)
 // ---------------------------------------------------------------
 const CHANCE_QUESTIONS = [
-  {
-    q: { uz: "Hozirgi bandlik holatingiz?", ru: "Ваш текущий статус занятости?" },
-    options: [
-      { uz: "Rasmiy ishlayman", ru: "Официально работаю", points: 20 },
-      { uz: "Tadbirkorman", ru: "Предприниматель", points: 18 },
-      { uz: "Talabaman", ru: "Студент", points: 12 },
-      { uz: "Ishsizman", ru: "Безработный", points: 5 },
-    ],
-    key: 'employment',
-  },
-  {
-    q: { uz: "Oylik rasmiy daromadingiz?", ru: "Ваш официальный ежемесячный доход?" },
-    options: [
-      { uz: "$2000 dan yuqori", ru: "Более $2000", points: 30 },
-      { uz: "$1000–2000", ru: "$1000–2000", points: 25 },
-      { uz: "$500–1000", ru: "$500–1000", points: 15 },
-      { uz: "$500 dan kam", ru: "Менее $500", points: 5 },
-    ],
-    key: 'income',
-  },
-  {
-    q: { uz: "Bank hisobingizdagi aylanma necha oylik?", ru: "За сколько месяцев оборот на вашем счёте?" },
-    options: [
-      { uz: "6 oy yoki ko'proq", ru: "6 месяцев и более", points: 20 },
-      { uz: "3–5 oy", ru: "3–5 месяцев", points: 15 },
-      { uz: "1–2 oy", ru: "1–2 месяца", points: 8 },
-      { uz: "Aylanma yo'q", ru: "Оборота нет", points: 0 },
-    ],
-    key: 'bankTurnover',
-  },
-  {
-    q: { uz: "Oxirgi 5 yilda nechta xorijiy safar qilgansiz?", ru: "Сколько поездок за границу было за 5 лет?" },
-    options: [
-      { uz: "3 va undan ko'p", ru: "3 и более", points: 20 },
-      { uz: "1–2 marta", ru: "1–2 раза", points: 12 },
-      { uz: "Hech qachon", ru: "Ни разу", points: 5 },
-    ],
-    key: 'travelHistory',
-  },
-  {
-    q: { uz: "Oldin viza rad javobi bo'lganmi?", ru: "Были ли раньше отказы в визе?" },
-    options: [
-      { uz: "Yo'q", ru: "Не было", points: 10 },
-      { uz: "Bo'lgan, sababi bartaraf etilgan", ru: "Был, причина устранена", points: 6 },
-      { uz: "Bo'lgan, hali ham dolzarb", ru: "Был, причина ещё актуальна", points: 0 },
-    ],
-    key: 'rejection',
-  },
-  {
-    q: { uz: "O'zbekistonda qaytish asoslaringiz (uy, oila, ish)?", ru: "Есть ли основания для возвращения в Узбекистан (дом, семья, работа)?" },
-    options: [
-      { uz: "Ha, kuchli asoslarim bor", ru: "Да, есть весомые основания", points: 20 },
-      { uz: "Qisman bor", ru: "Частично есть", points: 10 },
-      { uz: "Yo'q/aniq emas", ru: "Нет/не уверен(а)", points: 0 },
-    ],
-    key: 'homeTies',
-  },
+  // --- Maqsad ---
+  { key:'purpose', q:{uz:"Safar maqsadingiz?", ru:"Цель поездки?"},
+    options:[
+      {uz:"Turistik",ru:"Туристическая",points:10},
+      {uz:"Ishchi",ru:"Рабочая",points:8},
+      {uz:"Talaba",ru:"Студенческая",points:8},
+      {uz:"Biznes",ru:"Бизнес",points:9},
+    ]},
+  // --- Bandlik / barqarorlik ---
+  { key:'employment', q:{uz:"Hozirgi bandlik holatingiz?", ru:"Ваш текущий статус занятости?"},
+    options:[
+      {uz:"Rasmiy ishlayman",ru:"Официально работаю",points:20},
+      {uz:"Tadbirkorman",ru:"Предприниматель",points:18},
+      {uz:"Talabaman",ru:"Студент",points:12},
+      {uz:"Frilanser",ru:"Фрилансер",points:10},
+      {uz:"Ishsizman",ru:"Безработный",points:5},
+    ]},
+  { key:'employmentDuration', q:{uz:"Hozirgi ish/o'qish joyingizda necha oydan beri siz?", ru:"Сколько месяцев вы на текущей работе/учёбе?"},
+    options:[
+      {uz:"6 oy yoki ko'proq",ru:"6 месяцев и более",points:15},
+      {uz:"3–5 oy",ru:"3–5 месяцев",points:9},
+      {uz:"1–2 oy",ru:"1–2 месяца",points:4},
+    ]},
+  // --- Moliya ---
+  { key:'income', q:{uz:"Oylik rasmiy daromadingiz?", ru:"Ваш официальный ежемесячный доход?"},
+    options:[
+      {uz:"$2000 dan yuqori",ru:"Более $2000",points:25},
+      {uz:"$1000–2000",ru:"$1000–2000",points:20},
+      {uz:"$500–1000",ru:"$500–1000",points:12},
+      {uz:"$500 dan kam",ru:"Менее $500",points:5},
+    ]},
+  { key:'bankTurnover', q:{uz:"Bank hisobingizdagi aylanma necha oylik?", ru:"За сколько месяцев оборот на вашем счёте?"},
+    options:[
+      {uz:"6 oy yoki ko'proq",ru:"6 месяцев и более",points:20},
+      {uz:"3–5 oy",ru:"3–5 месяцев",points:14},
+      {uz:"1–2 oy",ru:"1–2 месяца",points:7},
+      {uz:"Aylanma yo'q",ru:"Оборота нет",points:0},
+    ]},
+  { key:'payer', q:{uz:"Safar xarajatini kim to'laydi?", ru:"Кто оплачивает поездку?"},
+    options:[
+      {uz:"O'zim",ru:"Сам",points:10},
+      {uz:"Homiy",ru:"Спонсор",points:7},
+      {uz:"Kompaniya",ru:"Компания",points:9},
+    ]},
+  // --- Oila / qaytish asoslari ---
+  { key:'maritalStatus', q:{uz:"Oilaviy holatingiz?", ru:"Семейное положение?"},
+    options:[
+      {uz:"Turmush qurganman",ru:"Женат/замужем",points:10},
+      {uz:"Turmush qurmaganman",ru:"Не женат/не замужем",points:6},
+    ]},
+  { key:'familyTravel', q:{uz:"Oilangiz siz bilan boradimi?", ru:"Едет ли семья с вами?"},
+    options:[
+      {uz:"Yo'q, O'zbekistonda qoladi",ru:"Нет, остаётся в Узбекистане",points:10},
+      {uz:"Ha, birga boradi",ru:"Да, едет со мной",points:5},
+    ]},
+  { key:'assets', q:{uz:"Mulk yoki uzoq muddatli majburiyatingiz bormi (uy, biznes)?", ru:"Есть ли имущество или долгосрочные обязательства (дом, бизнес)?"},
+    options:[
+      {uz:"Ha, bor",ru:"Да, есть",points:15},
+      {uz:"Qisman",ru:"Частично",points:8},
+      {uz:"Yo'q",ru:"Нет",points:0},
+    ]},
+  // --- Safar tarixi ---
+  { key:'travelHistory', q:{uz:"Oxirgi 5 yilda nechta xorijiy safar qilgansiz?", ru:"Сколько поездок за границу было за 5 лет?"},
+    options:[
+      {uz:"3 va undan ko'p",ru:"3 и более",points:20},
+      {uz:"1–2 marta",ru:"1–2 раза",points:12},
+      {uz:"Hech qachon",ru:"Ни разу",points:5},
+    ]},
+  { key:'priorVisa', q:{uz:"Shengen/AQSH/UK/Yaponiya vizasi bo'lganmi?", ru:"Была ли виза Шенгена/США/Великобритании/Японии?"},
+    options:[
+      {uz:"Ha, muddatida qaytganman",ru:"Да, вернулся вовремя",points:15},
+      {uz:"Yo'q",ru:"Нет",points:5},
+    ]},
+  { key:'rejection', q:{uz:"Oldin viza rad javobi bo'lganmi?", ru:"Были ли раньше отказы в визе?"},
+    options:[
+      {uz:"Yo'q",ru:"Не было",points:10},
+      {uz:"Bo'lgan, sababi bartaraf etilgan",ru:"Был, причина устранена",points:6},
+      {uz:"Bo'lgan, hali ham dolzarb",ru:"Был, причина ещё актуальна",points:0},
+    ]},
 ];
 const CHANCE_MAX_SCORE = CHANCE_QUESTIONS.reduce((sum, q) => sum + Math.max(...q.options.map(o => o.points)), 0);
 
@@ -351,29 +409,23 @@ function chanceQuestionKeyboard(stepIdx, lang) {
   const rows = step.options.map((o, i) => ([{ text: o[lang], callback_data: `chance_ans_${stepIdx}_${i}` }]));
   return { inline_keyboard: rows };
 }
-
-function sendChanceQuestion(chatId, stepIdx) {
-  const lang = getLang(chatId);
+function chanceQuestionText(stepIdx, lang) {
   const step = CHANCE_QUESTIONS[stepIdx];
-  const progress = `[${stepIdx + 1}/${CHANCE_QUESTIONS.length}]`;
-  bot.sendMessage(chatId, `${progress} ${step.q[lang]}`, { reply_markup: chanceQuestionKeyboard(stepIdx, lang) });
+  return `[${stepIdx + 1}/${CHANCE_QUESTIONS.length}] ${step.q[lang]}`;
 }
-
 function computeChanceResult(chatId) {
   const s = getState(chatId);
   const lang = getLang(chatId);
   const total = Object.values(s.chanceScore).reduce((a, b) => a + b, 0);
   const pct = Math.round((total / CHANCE_MAX_SCORE) * 100);
-
   let verdict;
   if (lang === 'ru') {
     verdict = pct >= 80 ? 'Профиль выглядит сильным' : pct >= 60 ? 'Профиль хороший, есть отдельные риски' : pct >= 40 ? 'Профиль средний' : 'Профиль нужно серьёзно усилить';
   } else {
     verdict = pct >= 80 ? "Profil kuchli ko'rinadi" : pct >= 60 ? 'Profil yaxshi, ayrim xavflar bor' : pct >= 40 ? "Profil o'rtacha" : 'Profilni jiddiy kuchaytirish kerak';
   }
-
   const t = T[lang];
-  return `📊 *${t.chance_result_head}: ${pct}%*\n\n${verdict}\n\n${t.chance_disclaimer}`;
+  return `📊 ${t.chance_result_head}: ${pct}%\n\n${verdict}\n\n${t.chance_disclaimer}${t.chance_cta}`;
 }
 
 // ---------------------------------------------------------------
@@ -383,6 +435,7 @@ function mainMenuKeyboard(chatId) {
   const t = T[getLang(chatId)];
   return {
     inline_keyboard: [
+      [{ text: t.menu_featured, callback_data: 'buy_course_kurs_barchasi' }],
       [{ text: t.menu_chance, callback_data: 'chance' }],
       [{ text: t.menu_services, callback_data: 'services' }, { text: t.menu_docs, callback_data: 'docs' }],
       [{ text: t.menu_courses, callback_data: 'courses' }, { text: t.menu_tours, callback_data: 'tours' }],
@@ -395,12 +448,91 @@ function backButton(chatId) {
   const t = T[getLang(chatId)];
   return { inline_keyboard: [[{ text: t.to_menu, callback_data: 'menu' }]] };
 }
-function sendMainMenu(chatId) {
+async function sendMainMenu(chatId) {
   const t = T[getLang(chatId)];
-  bot.sendMessage(chatId, t.welcome, { reply_markup: mainMenuKeyboard(chatId) });
+  await renderScreen(chatId, t.welcome, mainMenuKeyboard(chatId), { parse_mode: 'Markdown' });
 }
 
-bot.onText(/\/start/, (msg) => { clearPendingState(msg.chat.id); sendMainMenu(msg.chat.id); });
+// ---------------------------------------------------------------
+// DEEP-LINK PAYLOAD ISHLASH (saytdan t.me/Bot?start=XXX orqali kelganda)
+// ---------------------------------------------------------------
+async function triggerCoursePurchase(chatId, key, fromUser) {
+  const lang = getLang(chatId);
+  const t = T[lang];
+  const course = COURSE_CHANNELS[key];
+  if (!course) return sendMainMenu(chatId);
+  const name = lang === 'ru' ? course.nameRu : course.name;
+  const userLabel = `${fromUser.first_name || ''} (@${fromUser.username || 'username yo\'q'}, ID: ${chatId})`;
+  pendingPurchases.set(String(chatId), { kind: 'course', key, name, userLabel });
+
+  await renderScreen(chatId,
+    `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${t.purchase_pay}\n\n💳 Karta: XXXX XXXX XXXX XXXX\n👤 F.I.Sh`,
+    backButton(chatId)
+  );
+  if (ADMIN_CHAT_ID) {
+    await bot.sendMessage(ADMIN_CHAT_ID, `💰 Saytdan kurs xaridi!\n\nKurs: ${name} (${course.price})\nXaridor: ${userLabel}\n\nTasdiqlash: /tasdiqla ${chatId}`);
+  }
+}
+
+bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const payload = match && match[1] ? match[1].trim() : null;
+  clearPendingState(chatId);
+  getState(chatId).screenMsgId = null;
+
+  if (!payload) return sendMainMenu(chatId);
+
+  // Kurs sotib olish — saytdan to'g'ridan-to'g'ri
+  if (payload.startsWith('kurs_')) {
+    return triggerCoursePurchase(chatId, payload, msg.from);
+  }
+
+  // Video darsliklar ro'yxati
+  if (payload === 'courses') {
+    const lang = getLang(chatId);
+    const t = T[lang];
+    const rows = Object.entries(COURSE_CHANNELS).map(([key, c]) => (
+      [{ text: `${lang === 'ru' ? c.nameRu : c.name} — ${c.price}`, callback_data: `buy_course_${key}` }]
+    ));
+    rows.push([{ text: t.to_menu, callback_data: 'menu' }]);
+    return renderScreen(chatId, t.courses_head, { inline_keyboard: rows });
+  }
+
+  // Tur paketlar ro'yxati
+  if (payload === 'tours') {
+    const lang = getLang(chatId);
+    const t = T[lang];
+    const rows = Object.entries(TOUR_PACKAGES).map(([key, c]) => (
+      [{ text: `${lang === 'ru' ? c.nameRu : c.name} — ${c.price}`, callback_data: `buy_tour_${key}` }]
+    ));
+    rows.push([{ text: t.to_menu, callback_data: 'menu' }]);
+    return renderScreen(chatId, t.tours_head, { inline_keyboard: rows });
+  }
+
+  // AI yordamchi — Ishchi viza konteksti bilan
+  if (payload === 'ai_ishchi') {
+    getState(chatId).mode = 'ai';
+    const lang = getLang(chatId);
+    const prompt = lang === 'ru'
+      ? 'Вы пришли с сайта (раздел "Рабочая виза"). Напишите ваш вопрос — AI поможет и подберёт нужный видеокурс.'
+      : "Siz saytdan keldingiz (\"Ishchi viza\" bo'limi). Savolingizni yozing — AI yordam beradi va mos video kursni tavsiya qiladi.";
+    return renderScreen(chatId, prompt, backButton(chatId));
+  }
+
+  // Premium konsultatsiya — lid: ism so'raladi
+  if (payload === 'consult' || payload === 'partner') {
+    const s = getState(chatId);
+    s.mode = payload === 'consult' ? 'lead_consult' : 'lead_partner';
+    const lang = getLang(chatId);
+    const text = payload === 'consult'
+      ? (lang === 'ru' ? 'Вы выбрали Премиум-консультацию! Напишите, пожалуйста, ваше имя и телефон/Telegram — специалист свяжется с вами.' : "Siz Premium konsultatsiyani tanladingiz! Ismingiz va telefon/Telegram'ingizni yozing — mutaxassis siz bilan bog'lanadi.")
+      : (lang === 'ru' ? 'Хотите стать партнёром VizaAI! Напишите название организации и телефон/Telegram для связи.' : "VizaAI'ga hamkor bo'lmoqchisiz! Tashkilotingiz nomi va telefon/Telegram'ingizni yozing.");
+    return renderScreen(chatId, text, backButton(chatId));
+  }
+
+  // Noma'lum payload — asosiy menyu
+  return sendMainMenu(chatId);
+});
 
 // ---------------------------------------------------------------
 // TUGMA BOSILGANDA
@@ -412,26 +544,18 @@ bot.on('callback_query', async (query) => {
   const t = T[lang];
   bot.answerCallbackQuery(query.id).catch(() => {});
 
-  // "chance_ans_" dan boshqa barcha navigatsiya tugmalari — oldingi kutilayotgan
-  // so'rovlarni (AI savol kutish, hujjat kutish, test jarayoni) bekor qiladi.
-  if (!data.startsWith('chance_ans_')) {
-    clearPendingState(chatId);
-  }
+  if (!data.startsWith('chance_ans_')) clearPendingState(chatId);
 
   if (data === 'menu') return sendMainMenu(chatId);
 
   if (data === 'lang') {
-    return bot.sendMessage(chatId, "Tilni tanlang / Выберите язык:", {
-      reply_markup: { inline_keyboard: [[
-        { text: "🇺🇿 O'zbekcha", callback_data: 'setlang_uz' },
-        { text: '🇷🇺 Русский', callback_data: 'setlang_ru' },
-      ]] },
-    });
+    return renderScreen(chatId, "Tilni tanlang / Выберите язык:", { inline_keyboard: [[
+      { text: "🇺🇿 O'zbekcha", callback_data: 'setlang_uz' },
+      { text: '🇷🇺 Русский', callback_data: 'setlang_ru' },
+    ]] });
   }
   if (data === 'setlang_uz' || data === 'setlang_ru') {
-    const newLang = data === 'setlang_uz' ? 'uz' : 'ru';
-    userLang.set(chatId, newLang);
-    await bot.sendMessage(chatId, T[newLang].lang_set);
+    userLang.set(chatId, data === 'setlang_uz' ? 'uz' : 'ru');
     return sendMainMenu(chatId);
   }
 
@@ -439,94 +563,84 @@ bot.on('callback_query', async (query) => {
   if (data === 'chance') {
     const s = getState(chatId);
     s.mode = 'chance'; s.chanceStep = 0; s.chanceScore = {};
-    await bot.sendMessage(chatId, t.chance_start);
-    return sendChanceQuestion(chatId, 0);
+    return renderScreen(chatId, `${t.chance_start}\n\n${chanceQuestionText(0, lang)}`, chanceQuestionKeyboard(0, lang));
   }
   if (data.startsWith('chance_ans_')) {
-    const [, , stepStr, optStr] = data.split('_');
-    const stepIdx = +stepStr, optIdx = +optStr;
+    const parts = data.split('_');
+    const stepIdx = +parts[2], optIdx = +parts[3];
     const s = getState(chatId);
-    if (s.mode !== 'chance' || s.chanceStep !== stepIdx) return; // eski/ noto'g'ri bosish
+    if (s.mode !== 'chance' || s.chanceStep !== stepIdx) return;
     const question = CHANCE_QUESTIONS[stepIdx];
-    const chosen = question.options[optIdx];
-    s.chanceScore[question.key] = chosen.points;
+    s.chanceScore[question.key] = question.options[optIdx].points;
     s.chanceStep += 1;
 
     if (s.chanceStep < CHANCE_QUESTIONS.length) {
-      return sendChanceQuestion(chatId, s.chanceStep);
+      return renderScreen(chatId, chanceQuestionText(s.chanceStep, lang), chanceQuestionKeyboard(s.chanceStep, lang));
     }
-    // Test tugadi
     const resultText = computeChanceResult(chatId);
     clearPendingState(chatId);
-    return bot.sendMessage(chatId, resultText, { parse_mode: 'Markdown', reply_markup: backButton(chatId) });
+    return renderScreen(chatId, resultText, backButton(chatId));
   }
 
   // ---- Viza xizmatlari ----
   if (data === 'services') {
-    return bot.sendMessage(chatId, t.services_head, {
-      reply_markup: { inline_keyboard: [
-        [{ text: '✈️ Sayohat viza', callback_data: 'svc_travel' }],
-        [{ text: '💼 Ishchi viza', callback_data: 'svc_work' }],
-        [{ text: '🎓 Student', callback_data: 'svc_student' }],
-        [{ text: '❓ FAQ', callback_data: 'svc_faq' }],
-        [{ text: t.to_menu, callback_data: 'menu' }],
-      ] },
-    });
+    return renderScreen(chatId, t.services_head, { inline_keyboard: [
+      [{ text: '✈️ Sayohat viza', callback_data: 'svc_travel' }],
+      [{ text: '💼 Ishchi viza', callback_data: 'svc_work' }],
+      [{ text: '🎓 Student', callback_data: 'svc_student' }],
+      [{ text: '❓ FAQ', callback_data: 'svc_faq' }],
+      [{ text: t.to_menu, callback_data: 'menu' }],
+    ] });
   }
   if (data === 'svc_travel') {
     const rows = COUNTRIES.map(c => ([{ text: `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}`, callback_data: `chk_travel_${c.key}` }]));
     rows.push([{ text: t.back, callback_data: 'services' }]);
-    return bot.sendMessage(chatId, t.svc_travel_head, { reply_markup: { inline_keyboard: rows } });
+    return renderScreen(chatId, t.svc_travel_head, { inline_keyboard: rows });
   }
   if (data === 'svc_work') {
     const rows = WORK_COUNTRIES.map(c => ([{ text: `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}`, callback_data: `chk_work_${c.key}` }]));
     rows.push([{ text: t.back, callback_data: 'services' }]);
-    return bot.sendMessage(chatId, t.svc_work_head, { reply_markup: { inline_keyboard: rows } });
+    return renderScreen(chatId, t.svc_work_head, { inline_keyboard: rows });
   }
   if (data === 'svc_student') {
     const rows = STUDENT_COUNTRIES.map(c => ([{ text: `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}`, callback_data: `chk_student_${c.key}` }]));
     rows.push([{ text: t.back, callback_data: 'services' }]);
-    return bot.sendMessage(chatId, t.svc_student_head, { reply_markup: { inline_keyboard: rows } });
+    return renderScreen(chatId, t.svc_student_head, { inline_keyboard: rows });
   }
   if (data.startsWith('chk_travel_')) {
-    const key = data.replace('chk_travel_', '');
-    const c = COUNTRIES.find(x => x.key === key);
+    const c = COUNTRIES.find(x => x.key === data.replace('chk_travel_', ''));
     if (!c) return;
-    const list = c.items.map((it, i) => `${i + 1}. *${it[0]}* — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
-    return bot.sendMessage(chatId, `${c.flag} *${lang === 'ru' ? c.nameRu : c.name}*\n\n${list}`, { parse_mode: 'Markdown', reply_markup: backButton(chatId) });
+    const list = c.items.map((it, i) => `${i + 1}. ${it[0]} — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
+    return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
   if (data.startsWith('chk_work_')) {
-    const key = data.replace('chk_work_', '');
-    const c = WORK_COUNTRIES.find(x => x.key === key);
+    const c = WORK_COUNTRIES.find(x => x.key === data.replace('chk_work_', ''));
     if (!c) return;
-    const list = WORK_CHECKLIST.map((it, i) => `${i + 1}. *${it[0]}* — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
-    return bot.sendMessage(chatId, `${c.flag} *${lang === 'ru' ? c.nameRu : c.name}*\n\n${list}`, { parse_mode: 'Markdown', reply_markup: backButton(chatId) });
+    const list = WORK_CHECKLIST.map((it, i) => `${i + 1}. ${it[0]} — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
+    return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
   if (data.startsWith('chk_student_')) {
-    const key = data.replace('chk_student_', '');
-    const c = STUDENT_COUNTRIES.find(x => x.key === key);
+    const c = STUDENT_COUNTRIES.find(x => x.key === data.replace('chk_student_', ''));
     if (!c) return;
-    const list = STUDENT_CHECKLIST.map((it, i) => `${i + 1}. *${it[0]}* — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
-    return bot.sendMessage(chatId, `${c.flag} *${lang === 'ru' ? c.nameRu : c.name}*\n\n${list}`, { parse_mode: 'Markdown', reply_markup: backButton(chatId) });
+    const list = STUDENT_CHECKLIST.map((it, i) => `${i + 1}. ${it[0]} — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
+    return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
   if (data === 'svc_faq') {
     const rows = FAQ_DATA.map((f, i) => ([{ text: lang === 'ru' ? f[2] : f[0], callback_data: `faq_${i}` }]));
     rows.push([{ text: t.back, callback_data: 'services' }]);
-    return bot.sendMessage(chatId, t.faq_head, { reply_markup: { inline_keyboard: rows } });
+    return renderScreen(chatId, t.faq_head, { inline_keyboard: rows });
   }
   if (data.startsWith('faq_')) {
-    const idx = +data.replace('faq_', '');
-    const item = FAQ_DATA[idx];
+    const item = FAQ_DATA[+data.replace('faq_', '')];
     if (!item) return;
-    const q = lang === 'ru' ? item[2] : item[0];
-    const a = lang === 'ru' ? item[3] : item[1];
-    return bot.sendMessage(chatId, `❓ *${q}*\n\n${a}`, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: t.back, callback_data: 'svc_faq' }]] } });
+    const q = lang === 'ru' ? item[2] : item[0], a = lang === 'ru' ? item[3] : item[1];
+    return renderScreen(chatId, `❓ ${q}\n\n${a}`, { inline_keyboard: [[{ text: t.back, callback_data: 'svc_faq' }]] });
   }
 
   // ---- Hujjatni AI tekshirish ----
   if (data === 'docs') {
     getState(chatId).mode = 'doc';
-    return bot.sendMessage(chatId, t.doc_prompt, { reply_markup: backButton(chatId) });
+    return renderScreen(chatId, t.doc_prompt, backButton(chatId));
   }
 
   // ---- Video darsliklar ----
@@ -535,30 +649,18 @@ bot.on('callback_query', async (query) => {
       [{ text: `${lang === 'ru' ? c.nameRu : c.name} — ${c.price}`, callback_data: `buy_course_${key}` }]
     ));
     rows.push([{ text: t.to_menu, callback_data: 'menu' }]);
-    return bot.sendMessage(chatId, t.courses_head, { reply_markup: { inline_keyboard: rows } });
+    return renderScreen(chatId, t.courses_head, { inline_keyboard: rows });
   }
   if (data === 'tours') {
     const rows = Object.entries(TOUR_PACKAGES).map(([key, c]) => (
       [{ text: `${lang === 'ru' ? c.nameRu : c.name} — ${c.price}`, callback_data: `buy_tour_${key}` }]
     ));
     rows.push([{ text: t.to_menu, callback_data: 'menu' }]);
-    return bot.sendMessage(chatId, t.tours_head, { reply_markup: { inline_keyboard: rows } });
+    return renderScreen(chatId, t.tours_head, { inline_keyboard: rows });
   }
   if (data.startsWith('buy_course_')) {
     const key = data.replace('buy_course_', '');
-    const course = COURSE_CHANNELS[key];
-    if (!course) return;
-    const name = lang === 'ru' ? course.nameRu : course.name;
-    const userLabel = `${query.from.first_name || ''} (@${query.from.username || 'username yo\'q'}, ID: ${chatId})`;
-    pendingPurchases.set(String(chatId), { kind: 'course', key, name, userLabel });
-
-    await bot.sendMessage(chatId,
-      `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${t.purchase_pay}\n\n💳 Karta: XXXX XXXX XXXX XXXX\n👤 F.I.Sh`
-    );
-    if (ADMIN_CHAT_ID) {
-      await bot.sendMessage(ADMIN_CHAT_ID, `💰 Yangi kurs xaridi!\n\nKurs: ${name} (${course.price})\nXaridor: ${userLabel}\n\nTasdiqlash: /tasdiqla ${chatId}`);
-    }
-    return;
+    return triggerCoursePurchase(chatId, key, query.from);
   }
   if (data.startsWith('buy_tour_')) {
     const key = data.replace('buy_tour_', '');
@@ -568,7 +670,7 @@ bot.on('callback_query', async (query) => {
     const userLabel = `${query.from.first_name || ''} (@${query.from.username || 'username yo\'q'}, ID: ${chatId})`;
     pendingPurchases.set(String(chatId), { kind: 'tour', key, name, userLabel });
 
-    await bot.sendMessage(chatId, `"${name}" — ${tour.price} 🧳\n\n${t.tour_request_ok}`);
+    await renderScreen(chatId, `"${name}" — ${tour.price} 🧳\n\n${t.tour_request_ok}`, backButton(chatId));
     if (ADMIN_CHAT_ID) {
       await bot.sendMessage(ADMIN_CHAT_ID, `🧳 Yangi tur so'rovi!\n\nTur: ${name} (${tour.price})\nMijoz: ${userLabel}`);
     }
@@ -578,18 +680,16 @@ bot.on('callback_query', async (query) => {
   // ---- AI yordamchi ----
   if (data === 'ai') {
     getState(chatId).mode = 'ai';
-    return bot.sendMessage(chatId, t.ask_ai_prompt, { reply_markup: backButton(chatId) });
+    return renderScreen(chatId, t.ask_ai_prompt, backButton(chatId));
   }
 
   // ---- Boshqa imkoniyatlar ----
   if (data === 'other') {
-    return bot.sendMessage(chatId, t.other_head, {
-      reply_markup: { inline_keyboard: [
-        [{ text: t.ref_program, url: `${SITE_URL}#cta` }],
-        [{ text: t.partner_program, url: `${SITE_URL}#cta` }],
-        [{ text: t.to_menu, callback_data: 'menu' }],
-      ] },
-    });
+    return renderScreen(chatId, t.other_head, { inline_keyboard: [
+      [{ text: t.ref_program, url: `${SITE_URL}#cta` }],
+      [{ text: t.partner_program, url: `${SITE_URL}#cta` }],
+      [{ text: t.to_menu, callback_data: 'menu' }],
+    ] });
   }
 });
 
@@ -614,7 +714,7 @@ bot.onText(/\/tasdiqla (.+)/, async (msg, match) => {
 });
 
 // ---------------------------------------------------------------
-// ODDIY XABARLAR: hujjat fotosi, AI savol, saytdan lid
+// ODDIY XABARLAR: hujjat fotosi (chuqur AI tahlil), AI savol, saytdan lid
 // ---------------------------------------------------------------
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
@@ -626,10 +726,10 @@ bot.on('message', async (msg) => {
   const s = getState(chatId);
   const userLabel = `${msg.from.first_name || ''} (@${msg.from.username || 'username yo\'q'}, ID: ${chatId})`;
 
-  // ---- Hujjat fotosi — HAQIQIY AI TAHLILI (Claude vision) ----
+  // ---- Hujjat fotosi — CHUQUR AI TAHLILI (Claude vision) ----
   if (msg.photo && s.mode === 'doc') {
     clearPendingState(chatId);
-    await bot.sendMessage(chatId, t.doc_analyzing);
+    const analyzing = await bot.sendMessage(chatId, t.doc_analyzing);
     try {
       const fileId = msg.photo[msg.photo.length - 1].file_id;
       const fileLink = await bot.getFileLink(fileId);
@@ -640,25 +740,42 @@ bot.on('message', async (msg) => {
 
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 400,
-        system: `Siz hujjat tekshiruvchi AI'siz. ${lang === 'ru' ? 'Отвечайте на русском.' : "O'zbek tilida javob bering."}
-Rasmda qanday hujjat ekanini aniqlang (pasport, bank hujjati, anketa va h.k.), sifatini (aniqlik, yorug'lik, kesilmaganligi) va ko'zga tashlanadigan muammolarni ayting.
-Shaxsiy ma'lumotlarni (ism, raqam) qaytarmang yoki saqlamang — faqat texnik/formal fikr bildiring. 3-5 gap bilan javob bering.
-Oxirida eslatib qo'ying: bu AI tahlili, rasmiy tekshiruv emas.`,
+        max_tokens: 700,
+        system: `Siz tajribali hujjat tekshiruvchi AI'siz. ${lang === 'ru' ? 'Отвечайте на русском.' : "O'zbek tilida javob bering."}
+Rasmni diqqat bilan ko'rib, quyidagi tuzilishda tahlil bering:
+1) HUJJAT TURI — bu qanday hujjat ekanini aniqlang (pasport, bank hisob ko'chirmasi, anketa, bron, sug'urta va h.k.)
+2) TEXNIK SIFAT — aniqlik, yorug'lik, kesilmaganlik, burchaklar to'liq ko'rinishi
+3) MUAMMOLAR — ko'zga tashlangan aniq kamchiliklar (masalan xira, qirqilgan, muddati o'tgan ko'rinadi, imzo yo'q va h.k.) — agar muammo bo'lmasa aniq ayting
+4) TAVSIYA — nima qilish kerakligi bo'yicha 1-2 aniq qadam
+Har bir band uchun 1-2 gap, umumiy 6-8 gapdan oshmasin.
+Shaxsiy ma'lumotlarni (ism, raqam, sana) hech qachon qaytarmang, faqat ularning MAVJUDLIGINI/SIFATINI baholang.
+Oxirida albatta eslating: bu AI tahlili, rasmiy tekshiruv o'rnini bosmaydi.`,
         messages: [{
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-            { type: 'text', text: lang === 'ru' ? 'Проверьте этот документ.' : 'Bu hujjatni tekshirib bering.' },
+            { type: 'text', text: lang === 'ru' ? 'Проанализируйте этот документ подробно.' : 'Bu hujjatni batafsil tahlil qilib bering.' },
           ],
         }],
       });
 
       const feedback = response.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
-      await bot.sendMessage(chatId, `📄 ${feedback}`, { reply_markup: backButton(chatId) });
+      await bot.deleteMessage(chatId, analyzing.message_id).catch(() => {});
+      await sendContent(chatId, `📄 ${feedback}`, { reply_markup: backButton(chatId) });
     } catch (err) {
       console.error('Hujjat tahlili xatosi:', err);
-      await bot.sendMessage(chatId, t.ai_error, { reply_markup: backButton(chatId) });
+      await sendContent(chatId, t.ai_error, { reply_markup: backButton(chatId) });
+    }
+    return;
+  }
+
+  // ---- Premium konsultatsiya / Hamkorlik — foydalanuvchi ism/telefon yozdi ----
+  if ((s.mode === 'lead_consult' || s.mode === 'lead_partner') && text) {
+    const kind = s.mode === 'lead_consult' ? 'Premium konsultatsiya' : 'Hamkorlik so\'rovi';
+    clearPendingState(chatId);
+    await sendContent(chatId, t.lead_ok, { reply_markup: backButton(chatId) });
+    if (ADMIN_CHAT_ID) {
+      await bot.sendMessage(ADMIN_CHAT_ID, `📩 ${kind}!\n\nMa'lumot: ${text}\n\n👤 Yuboruvchi: ${userLabel}`);
     }
     return;
   }
@@ -679,7 +796,7 @@ Oxirida eslatib qo'ying: bu AI tahlili, rasmiy tekshiruv emas.`,
 
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 450,
+        max_tokens: 500,
         system: buildSystemPrompt(lang),
         messages: history,
       });
@@ -688,14 +805,14 @@ Oxirida eslatib qo'ying: bu AI tahlili, rasmiy tekshiruv emas.`,
       history.push({ role: 'assistant', content: reply });
       conversations.set(chatId, history.slice(-10));
 
-      await bot.sendMessage(chatId, reply, { reply_markup: backButton(chatId) });
+      await sendContent(chatId, reply, { reply_markup: backButton(chatId) });
     } catch (err) {
       console.error('AI xatosi:', err);
-      await bot.sendMessage(chatId, t.ai_error, { reply_markup: backButton(chatId) });
+      await sendContent(chatId, t.ai_error, { reply_markup: backButton(chatId) });
     }
   }
 });
 
 bot.on('polling_error', (err) => console.error('Polling xatosi:', err.message));
 
-console.log('VizaAI bot (to\'liq versiya) ishga tushdi ✅');
+console.log('VizaAI bot (yakuniy versiya) ishga tushdi ✅');
