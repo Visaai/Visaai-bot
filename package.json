@@ -1,0 +1,14 @@
+{
+  "name": "vizaai-bot",
+  "version": "1.0.0",
+  "description": "VizaAI Telegram bot",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.66.0",
+    "@anthropic-ai/sdk": "^0.32.0",
+    "dotenv": "^16.4.5"
+  }
+}
