@@ -29,7 +29,7 @@ function getLang(chatId) { return userLang.get(chatId) || 'uz'; }
 
 const T = {
   uz: {
-    welcome: "Assalomu alaykum! VizaAI botiga xush kelibsiz 👋\n\nBu yerda viza imkoniyatingizni tekshirasiz, davlat bo'yicha hujjatlarni olasiz, hujjat fotosini AI bilan tahlil qilasiz va video darslik yoki tur paketini tanlaysiz.\n\n🔥 *Eng ommabop*: Shengen video kursi — 199 000 so'm. Yoki barcha kurslar paketi — 999 000 so'm (1 700 000 o'rniga)!\n\nBoshlash uchun kerakli tugmani bosing:",
+    welcome: "Assalomu alaykum! VizaAI botiga xush kelibsiz 👋\n\nBu AI botda siz nimalar qila olasiz:\n\n✅ Viza olish imkoniyati — AI orqali\n✅ AI bilan viza qilish\n✅ Barcha kerakli hujjatlarni topasiz\n✅ Sayohatga kerakli hamma layf haklarni olasiz\n\n🔥 SUPER TAKLIF: 999 000 so'mga — barcha viza kurslari + sayohatda arzon qiladigan layf haklar to'plami!\n\nBoshlash uchun kerakli tugmani bosing:",
     menu_chance: "🧠 Viza imkoniyati testi",
     menu_services: "🗂️ Viza xizmatlari",
     menu_docs: "📸 Hujjatni AI tekshirish",
@@ -38,7 +38,7 @@ const T = {
     menu_ai: "🤖 AI yordamchi",
     menu_other: "🚩 Boshqa imkoniyatlar",
     menu_lang: "🌐 Til / Язык",
-    menu_featured: "🔥 Barcha kurslar (-40%)",
+    menu_featured: "🔥 Super taklif (-40%)",
     back: "⬅️ Orqaga",
     to_menu: "🏠 Bosh menyu",
     ask_ai_prompt: "Savolingizni yozing — AI javob beradi.",
@@ -57,6 +57,12 @@ const T = {
     lang_set: "Til o'zbekchaga o'zgartirildi ✅",
     purchase_thanks: "Xaridni tanladingiz",
     purchase_pay: "To'lov qilish uchun rekvizitlarga o'ting va skrinshotni shu yerga yuboring. Tasdiqlangach, kurs kanaliga havola yuboriladi.",
+    card_label: "Karta",
+    fullname_label: "F.I.Sh",
+    payment_confirmed: "✅ To'lovingiz tasdiqlandi!",
+    join_channel: "kursi kanaliga qo'shiling",
+    thanks: "Xaridingiz uchun rahmat! 🎉",
+    payment_confirmed_tour: "bo'yicha to'lovingiz tasdiqlandi! Tez orada operator bog'lanadi.",
     tour_request_ok: "So'rovingiz qabul qilindi! Tur agentligi hamkorimiz siz bilan tez orada bog'lanadi.",
     lead_ok: "✅ So'rovingiz qabul qilindi! Tez orada operatorlarimiz siz bilan bog'lanadi.",
     ai_error: "Kechirasiz, hozir javob berolmayapman. Birozdan keyin qayta urinib ko'ring.",
@@ -66,7 +72,7 @@ const T = {
     chance_cta: "\n\n💡 Profilingizni kuchaytirish uchun mos video kursimiz bor — \"Video darsliklar\" bo'limini ko'ring!",
   },
   ru: {
-    welcome: "Здравствуйте! Добро пожаловать в бот VizaAI 👋\n\nЗдесь вы можете проверить визовые шансы, получить документы по стране, проанализировать фото документа через AI и выбрать видеокурс или турпакет.\n\n🔥 *Самый популярный*: курс по Шенгену — 199 000 сум. Или пакет всех курсов — 999 000 сум (вместо 1 700 000)!\n\nНажмите нужную кнопку, чтобы начать:",
+    welcome: "Здравствуйте! Добро пожаловать в бот VizaAI 👋\n\nЧто вы можете делать в этом AI-боте:\n\n✅ Проверить шансы на визу — через AI\n✅ Оформить визу с помощью AI\n✅ Найти все необходимые документы\n✅ Получить все лайфхаки для путешествий\n\n🔥 СУПЕР-ПРЕДЛОЖЕНИЕ: за 999 000 сум — все визовые курсы + сборник лайфхаков для экономии в путешествиях!\n\nНажмите нужную кнопку, чтобы начать:",
     menu_chance: "🧠 Тест визовых шансов",
     menu_services: "🗂️ Визовые услуги",
     menu_docs: "📸 Проверка документа AI",
@@ -75,7 +81,7 @@ const T = {
     menu_ai: "🤖 AI-помощник",
     menu_other: "🚩 Другие возможности",
     menu_lang: "🌐 Til / Язык",
-    menu_featured: "🔥 Все курсы (-40%)",
+    menu_featured: "🔥 Супер-предложение (-40%)",
     back: "⬅️ Назад",
     to_menu: "🏠 Главное меню",
     ask_ai_prompt: "Напишите ваш вопрос — AI ответит.",
@@ -94,6 +100,12 @@ const T = {
     lang_set: "Язык изменён на русский ✅",
     purchase_thanks: "Вы выбрали покупку",
     purchase_pay: "Перейдите к оплате по реквизитам и отправьте скриншот сюда. После подтверждения будет отправлена ссылка на канал курса.",
+    card_label: "Карта",
+    fullname_label: "Ф.И.О",
+    payment_confirmed: "✅ Ваша оплата подтверждена!",
+    join_channel: "— присоединяйтесь к каналу курса",
+    thanks: "Спасибо за покупку! 🎉",
+    payment_confirmed_tour: "оплата подтверждена! Скоро с вами свяжется оператор.",
     tour_request_ok: "Заявка принята! Наш партнёр-турагентство скоро свяжется с вами.",
     lead_ok: "✅ Заявка принята! Скоро наши операторы свяжутся с вами.",
     ai_error: "Извините, сейчас не могу ответить. Попробуйте немного позже.",
@@ -450,7 +462,7 @@ function backButton(chatId) {
 }
 async function sendMainMenu(chatId) {
   const t = T[getLang(chatId)];
-  await renderScreen(chatId, t.welcome, mainMenuKeyboard(chatId), { parse_mode: 'Markdown' });
+  await renderScreen(chatId, t.welcome, mainMenuKeyboard(chatId));
 }
 
 // ---------------------------------------------------------------
@@ -466,7 +478,7 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
   pendingPurchases.set(String(chatId), { kind: 'course', key, name, userLabel });
 
   await renderScreen(chatId,
-    `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${t.purchase_pay}\n\n💳 Karta: XXXX XXXX XXXX XXXX\n👤 F.I.Sh`,
+    `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${t.purchase_pay}\n\n💳 ${t.card_label}: XXXX XXXX XXXX XXXX\n👤 ${t.fullname_label}`,
     backButton(chatId)
   );
   if (ADMIN_CHAT_ID) {
@@ -703,11 +715,14 @@ bot.onText(/\/tasdiqla (.+)/, async (msg, match) => {
   const purchase = pendingPurchases.get(targetId);
   if (!purchase) return bot.sendMessage(chatId, "Bu chat_id kutilayotgan xaridlar ro'yxatida topilmadi.");
 
+  const targetLang = getLang(targetId);
+  const tt = T[targetLang];
+
   if (purchase.kind === 'course') {
     const course = COURSE_CHANNELS[purchase.key];
-    await bot.sendMessage(targetId, `✅ To'lovingiz tasdiqlandi!\n\n"${purchase.name}" kursi kanaliga qo'shiling:\n${course.link}\n\nRahmat! 🎉`);
+    await bot.sendMessage(targetId, `${tt.payment_confirmed}\n\n"${purchase.name}" ${tt.join_channel}:\n${course.link}\n\n${tt.thanks}`);
   } else {
-    await bot.sendMessage(targetId, `✅ "${purchase.name}" bo'yicha to'lovingiz tasdiqlandi! Tez orada operator bog'lanadi.`);
+    await bot.sendMessage(targetId, `✅ "${purchase.name}" — ${tt.payment_confirmed_tour}`);
   }
   await bot.sendMessage(chatId, `Yuborildi: ${purchase.userLabel}`);
   pendingPurchases.delete(targetId);
