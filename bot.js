@@ -112,19 +112,21 @@ async function sendAdminProfileCard(chatId, event) {
     : '❌ Hali hech narsa sotib olmadi';
 
   const chanceLine = u.chanceScorePct !== null ? `${u.chanceScorePct}%` : "o'tmagan";
+  const phoneDisplay = u.phone || "❗️ RO'YXATDAN O'TMAGAN";
 
   const card =
-`👤 Foydalanuvchi-${chatId}
+`📱📱📱 ${phoneDisplay} 📱📱📱
+
+👤 Foydalanuvchi-${chatId} — ${u.name || ''}
 📌 Hodisa: ${event}
 
-📱 Telefon: ${u.phone || '—'}
 🌍 Qiziqqan yo'nalish: ${u.interestedIn || 'hali aniqlanmagan'}
 🧠 Viza AI tahlili: ${chanceLine}
 📸 Hujjat tekshiruvi: ${u.docChecksCount} marta
 🎬 Kurs holati: ${purchaseLine}
 🎁 Promo: ${u.referredBy ? `kiritgan (${u.referredBy})` : "kiritmagan"}
 
-☎️ Kimga qo'ng'iroq: /izoh_${chatId} <izoh>`;
+☎️ Qo'ng'iroqdan keyin izoh: /izoh_${chatId} <matn>`;
 
   notifyAdmins(card);
 }
@@ -399,14 +401,14 @@ QOIDALAR:
 // ---------------------------------------------------------------
 // FOYDALANUVCHI HOLATI
 // ---------------------------------------------------------------
-const userState = new Map(); // chatId -> { mode, chanceStep, chanceScore, screenMsgId, pendingPayload }
+const userState = new Map(); // chatId -> { mode, chanceStep, chanceScore, chanceAnswers, screenMsgId, pendingPayload }
 function getState(chatId) {
-  if (!userState.has(chatId)) userState.set(chatId, { mode: 'idle', chanceStep: 0, chanceScore: {}, screenMsgId: null, pendingPayload: null });
+  if (!userState.has(chatId)) userState.set(chatId, { mode: 'idle', chanceStep: 0, chanceScore: {}, chanceAnswers: {}, screenMsgId: null, pendingPayload: null });
   return userState.get(chatId);
 }
 function clearPendingState(chatId) {
   const s = getState(chatId);
-  s.mode = 'idle'; s.chanceStep = 0; s.chanceScore = {};
+  s.mode = 'idle'; s.chanceStep = 0; s.chanceScore = {}; s.chanceAnswers = {};
   // pendingPayload ataylab tozalanmaydi — registratsiyadan keyin ishlatiladi,
   // handleStartPayload chaqirilgach qo'lda tozalanadi (kerak bo'lsa)
 }
@@ -556,9 +558,60 @@ function chanceQuestionText(stepIdx, lang) {
   const step = CHANCE_QUESTIONS[stepIdx];
   return `[${stepIdx + 1}/${CHANCE_QUESTIONS.length}] ${step.q[lang]}`;
 }
+const CHANCE_CATEGORIES = [
+  { key: 'finance', keys: ['income', 'bankTurnover', 'payer'],
+    label: { uz: "Moliyaviy holat", ru: "Финансовое положение" },
+    tip: { uz: "Bank aylanmangizni va daromad hujjatlaringizni kuchaytiring", ru: "Усильте оборот по счёту и документы о доходах" } },
+  { key: 'stability', keys: ['employment', 'employmentDuration', 'jobLevel', 'addressStability', 'language'],
+    label: { uz: "Ish/turmush barqarorligi", ru: "Стабильность работы/жизни" },
+    tip: { uz: "Uzoq muddatli ish joyi va manzil turg'unligini hujjat bilan ko'rsating", ru: "Подтвердите документами долгосрочную работу и стабильность проживания" } },
+  { key: 'family', keys: ['maritalStatus', 'familyTravel', 'assets'],
+    label: { uz: "Oila va qaytish asoslari", ru: "Семья и основания для возвращения" },
+    tip: { uz: "Mulk yoki oilaviy bog'liqliklaringizni hujjat bilan tasdiqlang", ru: "Подтвердите документами имущество или семейные связи" } },
+  { key: 'travelHistory', keys: ['travelHistory', 'priorVisa', 'rejection'],
+    label: { uz: "Sayohat tarixi", ru: "История поездок" },
+    tip: { uz: "Aniq va batafsil sayohat rejasi tayyorlang, bu tajriba yo'qligini qoplaydi", ru: "Подготовьте чёткий план поездки — это компенсирует отсутствие опыта" } },
+];
+
+function analyzeChanceCategories(chanceScore, lang) {
+  const results = CHANCE_CATEGORIES.map(cat => {
+    let earned = 0, max = 0;
+    cat.keys.forEach(k => {
+      const q = CHANCE_QUESTIONS.find(q => q.key === k);
+      if (!q) return;
+      earned += chanceScore[k] || 0;
+      max += Math.max(...q.options.map(o => o.points));
+    });
+    return { ...cat, pct: max ? Math.round((earned / max) * 100) : 0 };
+  });
+  const sorted = [...results].sort((a, b) => b.pct - a.pct);
+  const strong = sorted.slice(0, 2).filter(c => c.pct >= 60);
+  const weak = [...sorted].reverse().slice(0, 2).filter(c => c.pct < 70);
+  return { strong, weak };
+}
+
+function recommendCourse(chatId) {
+  const u = getUser(chatId);
+  const s = getState(chatId);
+  const interestedIn = (u.interestedIn || '').toLowerCase();
+  const countryMap = [
+    ['shengen', 'kurs_shengen'], ['yaponiya', 'kurs_yaponiya'],
+    ['aqsh', 'kurs_aqsh'], ['buyuk britaniya', 'kurs_uk'],
+    ['hong kong', 'kurs_hongkong'], ['avstraliya', 'kurs_avstraliya'], ['kanada', 'kurs_kanada'],
+  ];
+  for (const [kw, key] of countryMap) {
+    if (interestedIn.includes(kw)) return key;
+  }
+  const purposeIdx = s.chanceAnswers ? s.chanceAnswers['purpose'] : undefined;
+  if (purposeIdx === 1) return 'kurs_ishchi';
+  if (purposeIdx === 2) return 'kurs_talaba';
+  return 'kurs_barchasi';
+}
+
 function computeChanceResult(chatId) {
   const s = getState(chatId);
   const lang = getLang(chatId);
+  const t = T[lang];
   const total = Object.values(s.chanceScore).reduce((a, b) => a + b, 0);
   const pct = Math.round((total / CHANCE_MAX_SCORE) * 100);
 
@@ -572,8 +625,26 @@ function computeChanceResult(chatId) {
   } else {
     verdict = pct >= 80 ? "Profil kuchli ko'rinadi" : pct >= 60 ? 'Profil yaxshi, ayrim xavflar bor' : pct >= 40 ? "Profil o'rtacha" : 'Profilni jiddiy kuchaytirish kerak';
   }
-  const t = T[lang];
-  return `📊 ${t.chance_result_head}: ${pct}%\n\n${verdict}\n\n${t.chance_disclaimer}${t.chance_cta}`;
+
+  const { strong, weak } = analyzeChanceCategories(s.chanceScore, lang);
+  const strongLabel = lang === 'ru' ? '✅ Сильные стороны:' : "✅ Kuchli tomonlaringiz:";
+  const weakLabel = lang === 'ru' ? '⚠️ Обратите внимание:' : "⚠️ E'tibor bering:";
+
+  const strongText = strong.length
+    ? `\n\n${strongLabel}\n` + strong.map(c => `• ${c.label[lang]} (${c.pct}%)`).join('\n')
+    : '';
+  const weakText = weak.length
+    ? `\n\n${weakLabel}\n` + weak.map(c => `• ${c.label[lang]} — ${c.tip[lang]}`).join('\n')
+    : '';
+
+  const courseKey = recommendCourse(chatId);
+  const course = COURSE_CHANNELS[courseKey];
+  const courseName = lang === 'ru' ? course.nameRu : course.name;
+  const courseText = lang === 'ru'
+    ? `\n\n🎬 Рекомендуем: "${courseName}" — ${course.price}. Этот курс даёт подготовку именно под вашу ситуацию. Купить можно в разделе "Видеокурсы".`
+    : `\n\n🎬 Sizga tavsiya etamiz: "${courseName}" — ${course.price}. Bu kurs aynan sizning holatingizga mos tayyorgarlikni beradi. "Video darsliklar" bo'limidan sotib olishingiz mumkin.`;
+
+  return `📊 ${t.chance_result_head}: ${pct}%\n\n${verdict}${strongText}${weakText}\n\n${t.chance_disclaimer}${courseText}`;
 }
 
 // ---------------------------------------------------------------
@@ -735,7 +806,7 @@ bot.on('callback_query', async (query) => {
   // ---- Viza imkoniyati testi ----
   if (data === 'chance') {
     const s = getState(chatId);
-    s.mode = 'chance'; s.chanceStep = 0; s.chanceScore = {};
+    s.mode = 'chance'; s.chanceStep = 0; s.chanceScore = {}; s.chanceAnswers = {};
     return renderScreen(chatId, `${t.chance_start}\n\n${chanceQuestionText(0, lang)}`, chanceQuestionKeyboard(0, lang));
   }
   if (data.startsWith('chance_ans_')) {
@@ -745,6 +816,8 @@ bot.on('callback_query', async (query) => {
     if (s.mode !== 'chance' || s.chanceStep !== stepIdx) return;
     const question = CHANCE_QUESTIONS[stepIdx];
     s.chanceScore[question.key] = question.options[optIdx].points;
+    s.chanceAnswers = s.chanceAnswers || {};
+    s.chanceAnswers[question.key] = optIdx;
     s.chanceStep += 1;
 
     if (s.chanceStep < CHANCE_QUESTIONS.length) {
@@ -787,6 +860,7 @@ bot.on('callback_query', async (query) => {
     const u = getUser(chatId);
     u.interestedIn = `${c.name} (sayohat viza)`;
     saveDB();
+    sendAdminProfileCard(chatId, `Checklist ko'rdi: ${c.name} (sayohat viza)`);
     const list = c.items.map((it, i) => `${i + 1}. ${it[0]} — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
     return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
@@ -796,6 +870,7 @@ bot.on('callback_query', async (query) => {
     const u = getUser(chatId);
     u.interestedIn = `${c.name} (ishchi viza)`;
     saveDB();
+    sendAdminProfileCard(chatId, `Checklist ko'rdi: ${c.name} (ishchi viza)`);
     const list = WORK_CHECKLIST.map((it, i) => `${i + 1}. ${it[0]} — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
     return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
@@ -805,6 +880,7 @@ bot.on('callback_query', async (query) => {
     const u = getUser(chatId);
     u.interestedIn = `${c.name} (talaba vizasi)`;
     saveDB();
+    sendAdminProfileCard(chatId, `Checklist ko'rdi: ${c.name} (talaba vizasi)`);
     const list = STUDENT_CHECKLIST.map((it, i) => `${i + 1}. ${it[0]} — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
     return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
