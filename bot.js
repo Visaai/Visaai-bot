@@ -21,8 +21,18 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 // Bir nechta admin — .env faylida vergul bilan ajratib yoziladi:
 // ADMIN_CHAT_IDS=111111111,222222222,333333333
 // (Eski ADMIN_CHAT_ID ham ishlaydi — orqaga moslik uchun)
-const ADMIN_CHAT_IDS = (process.env.ADMIN_CHAT_IDS || process.env.ADMIN_CHAT_ID || '')
-  .split(',').map(s => s.trim()).filter(Boolean);
+//
+// Bundan tashqari, quyidagi ro'yxatga ID'larni to'g'ridan-to'g'ri shu yerga
+// (kodga) qo'shish ham mumkin — Render sozlamalariga tegishning hojati yo'q,
+// shunchaki shu faylni GitHub'ga qayta yuklasangiz yetarli.
+const HARD_CODED_ADMIN_IDS = [
+  '1053467069', // so'ralgan admin
+];
+
+const ADMIN_CHAT_IDS = Array.from(new Set([
+  ...(process.env.ADMIN_CHAT_IDS || process.env.ADMIN_CHAT_ID || '').split(',').map(s => s.trim()).filter(Boolean),
+  ...HARD_CODED_ADMIN_IDS,
+]));
 const ADMIN_CHAT_ID = ADMIN_CHAT_IDS[0] || null; // ba'zi eski kod joylarida hali ishlatiladi
 
 function isAdmin(chatId) {
