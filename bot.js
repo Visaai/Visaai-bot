@@ -1147,7 +1147,12 @@ bot.on('message', async (msg) => {
       : `Rahmat! Ro'yxatdan o'tdingiz ✅\n\n🎁 Sizning promo kodingiz (bosib nusxalang):\n\`${u.promoCode}\`\n\nDo'stingiz bilan bo'lishing — ikkalangiz ham chegirma olasiz.`;
     await bot.sendMessage(chatId, welcomeBack, { reply_markup: { remove_keyboard: true }, parse_mode: 'Markdown' });
 
-    notifyAdmins(`🆕 Yangi ro'yxatdan o'tish!\n\n👤 ${userLabel}\n📱 ${phone}`);
+    notifyAdmins(`🆕 Yangi mijoz kirdi!\n\n👤 ${userLabel}\n📱 ${phone}\n\n⏳ 2 daqiqadan so'ng uning bot ichidagi faoliyati haqida qo'shimcha xabar keladi...`);
+
+    // 2 daqiqadan keyin — mijoz shu vaqt ichida bot ichida nima qilgani haqida to'liq xulosa
+    setTimeout(() => {
+      sendAdminProfileCard(chatId, "Kirganidan 2 daqiqa o'tdi — bot ichidagi faoliyati");
+    }, 2 * 60 * 1000);
 
     return handleStartPayload(chatId, pendingPayload, msg.from);
   }
