@@ -13,7 +13,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const fetch = require('node-fetch');
+const https = require('https'); // Node.js o'zida mavjud — hech qanday o'rnatish shart emas
 const TelegramBot = require('node-telegram-bot-api');
 const Anthropic = require('@anthropic-ai/sdk');
 
@@ -101,6 +101,36 @@ function findUserByPromoCode(code) {
 // ADMIN PROFIL KARTOCHKASI — har bir muhim bosqichda (test tugagach,
 // xarid qilganda/qilmaganda) sizga qisqa, tuzilgan xulosa keladi.
 // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// FAYLNI YUKLAB OLISH — Node.js o'zining "https" moduli orqali
+// (tashqi kutubxonaga bog'liq emas, hech qachon "topilmadi" xatosi
+// bo'lmaydi — bu oldingi fetch/node-fetch muammosini butunlay yechadi)
+// ---------------------------------------------------------------
+function downloadFileAsBuffer(url, redirectCount = 0) {
+  return new Promise((resolve, reject) => {
+    if (redirectCount > 5) return reject(new Error('Juda ko\'p qayta yo\'naltirish (redirect)'));
+    https.get(url, (res) => {
+      // Ba'zi serverlar faylni qayta yo'naltirishi mumkin — buni ham qo'llab-quvvatlaymiz
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
+        return resolve(downloadFileAsBuffer(res.headers.location, redirectCount + 1));
+      }
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        reject(new Error(`Fayl yuklab olinmadi (HTTP ${res.statusCode})`));
+        res.resume();
+        return;
+      }
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => resolve({
+        buffer: Buffer.concat(chunks),
+        contentType: res.headers['content-type'] || 'image/jpeg',
+      }));
+      res.on('error', reject);
+    }).on('error', reject);
+  });
+}
+
 async function sendAdminProfileCard(chatId, event) {
   if (ADMIN_CHAT_IDS.length === 0) return;
   const u = usersDB[String(chatId)];
@@ -1190,13 +1220,11 @@ bot.on('message', async (msg) => {
       stage = 'faylni yuklab olish';
       const fileId = msg.photo[msg.photo.length - 1].file_id;
       const fileLink = await bot.getFileLink(fileId);
-      const imgResp = await fetch(fileLink);
-      if (!imgResp.ok) throw new Error(`Fayl yuklanmadi (HTTP ${imgResp.status})`);
-      const arrayBuf = await imgResp.arrayBuffer();
-      const sizeMb = arrayBuf.byteLength / (1024 * 1024);
+      const { buffer, contentType } = await downloadFileAsBuffer(fileLink);
+      const sizeMb = buffer.length / (1024 * 1024);
       if (sizeMb > 4.5) throw new Error(`Rasm hajmi juda katta (${sizeMb.toFixed(1)}MB) — 4.5MB dan kichikroq rasm yuboring`);
-      const base64 = Buffer.from(arrayBuf).toString('base64');
-      const mediaType = imgResp.headers.get('content-type') || 'image/jpeg';
+      const base64 = buffer.toString('base64');
+      const mediaType = contentType;
 
       stage = 'AI orqali tahlil qilish';
       const response = await anthropic.messages.create({
