@@ -279,82 +279,82 @@ const T = {
 // ---------------------------------------------------------------
 const COUNTRIES = [
   { key:"japan", flag:"🇯🇵", name:"Yaponiya", nameRu:"Япония", items:[
-    ["Anketa","Visa application form to'ldiriladi","Заполняется форма Visa application form"],
-    ["Pasport","Kamida 6 oy amal qilishi kerak","Должен действовать минимум 6 месяцев"],
-    ["ID karta","Ikkala tomoni skanerlanadi","Сканируются обе стороны"],
-    ["Foto 3x4","Oq fonda, so'nggi 6 oylik","На белом фоне, не старше 6 месяцев"],
-    ["Aviabilet bron","Bordi-keldi bron","Бронь в обе стороны"],
-    ["Hotel bron","Butun sayohat davri uchun","На весь период поездки"],
-    ["Sug'urta","Xalqaro sayohat sug'urtasi","Международная туристическая страховка"],
-    ["Bank spravka","6 oylik karta aylanmasi","Оборот по карте за 6 месяцев"],
-    ["Sayohat rejasi","Kunlik marshrut","Ежедневный маршрут"],
+    ["Anketa","Анкета","Visa application form to'ldiriladi","Заполняется форма Visa application form"],
+    ["Pasport","Паспорт","Kamida 6 oy amal qilishi kerak","Должен действовать минимум 6 месяцев"],
+    ["ID karta","ID-карта","Ikkala tomoni skanerlanadi","Сканируются обе стороны"],
+    ["Foto 3x4","Фото 3x4","Oq fonda, so'nggi 6 oylik","На белом фоне, не старше 6 месяцев"],
+    ["Aviabilet bron","Бронь авиабилета","Bordi-keldi bron","Бронь в обе стороны"],
+    ["Hotel bron","Бронь отеля","Butun sayohat davri uchun","На весь период поездки"],
+    ["Sug'urta","Страховка","Xalqaro sayohat sug'urtasi","Международная туристическая страховка"],
+    ["Bank spravka","Банковская справка","6 oylik karta aylanmasi","Оборот по карте за 6 месяцев"],
+    ["Sayohat rejasi","План поездки","Kunlik marshrut","Ежедневный маршрут"],
   ]},
   { key:"schengen", flag:"🇪🇺", name:"Shengen", nameRu:"Шенген", items:[
-    ["Pasport","Kamida 3 oy amal qilishi kerak","Должен действовать минимум 3 месяца"],
-    ["Anketa, foto va yig'im","VIDEX shakli, foto, konsullik yig'imi","Форма VIDEX, фото, консульский сбор"],
-    ["Moliyaviy hujjatlar","Bank hisob ko'chirmasi","Банковская выписка"],
-    ["Ish/o'qish holati","Ish yoki o'qish joyidan spravka","Справка с места работы или учёбы"],
-    ["Aviabilet va turar joy","Bron nusxalari","Копии брони"],
-    ["Tibbiy sug'urta","Kamida €30 000 qamrovli","Покрытие не менее €30 000"],
-    ["Sayohat maqsadi","Turizm/qarindosh/biznes hujjati","Документ о туризме/родственниках/бизнесе"],
-    ["Qo'shimcha hujjatlar","Eski pasport, nikoh va h.k.","Старый паспорт, свидетельство о браке и т.д."],
-    ["Voyaga yetmaganlar uchun","Agar kerak bo'lsa","Если требуется"],
+    ["Pasport","Паспорт","Kamida 3 oy amal qilishi kerak","Должен действовать минимум 3 месяца"],
+    ["Anketa, foto va yig'im","Анкета, фото и сбор","VIDEX shakli, foto, konsullik yig'imi","Форма VIDEX, фото, консульский сбор"],
+    ["Moliyaviy hujjatlar","Финансовые документы","Bank hisob ko'chirmasi","Банковская выписка"],
+    ["Ish/o'qish holati","Статус работы/учёбы","Ish yoki o'qish joyidan spravka","Справка с места работы или учёбы"],
+    ["Aviabilet va turar joy","Авиабилет и проживание","Bron nusxalari","Копии брони"],
+    ["Tibbiy sug'urta","Медицинская страховка","Kamida €30 000 qamrovli","Покрытие не менее €30 000"],
+    ["Sayohat maqsadi","Цель поездки","Turizm/qarindosh/biznes hujjati","Документ о туризме/родственниках/бизнесе"],
+    ["Qo'shimcha hujjatlar","Дополнительные документы","Eski pasport, nikoh va h.k.","Старый паспорт, свидетельство о браке и т.д."],
+    ["Voyaga yetmaganlar uchun","Для несовершеннолетних","Agar kerak bo'lsa","Если требуется"],
   ]},
   { key:"usa", flag:"🇺🇸", name:"AQSH", nameRu:"США", items:[
-    ["Pasport","Amaldagi va eski pasportlar","Действующий и старые паспорта"],
-    ["DS-160 tasdiqnomasi","Shtrix-kodli sahifa","Страница со штрихкодом"],
-    ["Sobesedovaniya bron","Elchixona uchrashuvi","Встреча в посольстве"],
-    ["Konsullik yig'imi","MRV to'lov kvitansiyasi","Квитанция об оплате MRV"],
-    ["Foto 5x5 sm","Zaxira fotosurat","Запасная фотография"],
-    ["Bank hisob ko'chirmasi","So'nggi 3-6 oylik","За последние 3–6 месяцев"],
-    ["Ish/o'qish ma'lumotnomasi","Bandlik holatini tasdiqlash","Подтверждение занятости"],
-    ["Mulk va oila hujjatlari","Qo'shimcha bog'liqlik dalili","Дополнительное доказательство связей"],
-    ["Sayohat rejasi","Taxminiy marshrut","Примерный маршрут"],
+    ["Pasport","Паспорт","Amaldagi va eski pasportlar","Действующий и старые паспорта"],
+    ["DS-160 tasdiqnomasi","Подтверждение DS-160","Shtrix-kodli sahifa","Страница со штрихкодом"],
+    ["Sobesedovaniya bron","Запись на собеседование","Elchixona uchrashuvi","Встреча в посольстве"],
+    ["Konsullik yig'imi","Консульский сбор","MRV to'lov kvitansiyasi","Квитанция об оплате MRV"],
+    ["Foto 5x5 sm","Фото 5x5 см","Zaxira fotosurat","Запасная фотография"],
+    ["Bank hisob ko'chirmasi","Банковская выписка","So'nggi 3-6 oylik","За последние 3–6 месяцев"],
+    ["Ish/o'qish ma'lumotnomasi","Справка о работе/учёбе","Bandlik holatini tasdiqlash","Подтверждение занятости"],
+    ["Mulk va oila hujjatlari","Документы об имуществе и семье","Qo'shimcha bog'liqlik dalili","Дополнительное доказательство связей"],
+    ["Sayohat rejasi","План поездки","Taxminiy marshrut","Примерный маршрут"],
   ]},
   { key:"uk", flag:"🇬🇧", name:"Buyuk Britaniya", nameRu:"Великобритания", items:[
-    ["Pasport hujjatlari","Xalqaro pasport, ID karta","Загранпаспорт, ID-карта"],
-    ["Bank kartalari aylanmasi","12 va 4 oylik spravkalar","Справки за 12 и 4 месяца"],
-    ["Ish va daromad ma'lumotlari","mygov.uz, soliq.uz","Через mygov.uz, soliq.uz"],
-    ["Biznes hujjatlari","Ish beruvchi tomonidan","Со стороны работодателя"],
-    ["Mulk va aktivlar","Ko'chmas mulk, avtomobil","Недвижимость, автомобиль"],
-    ["Manzil va sayohat tarixi","mygov.uz orqali","Через mygov.uz"],
-    ["Oila hujjatlari","Kerak bo'lganda taqdim etiladi","Предоставляется при необходимости"],
-    ["Sayohat hujjatlari","Reja, sug'urta, bilet, bron","План, страховка, билет, бронь"],
+    ["Pasport hujjatlari","Паспортные документы","Xalqaro pasport, ID karta","Загранпаспорт, ID-карта"],
+    ["Bank kartalari aylanmasi","Оборот по банковским картам","12 va 4 oylik spravkalar","Справки за 12 и 4 месяца"],
+    ["Ish va daromad ma'lumotlari","Данные о работе и доходе","mygov.uz, soliq.uz","Через mygov.uz, soliq.uz"],
+    ["Biznes hujjatlari","Бизнес-документы","Ish beruvchi tomonidan","Со стороны работодателя"],
+    ["Mulk va aktivlar","Имущество и активы","Ko'chmas mulk, avtomobil","Недвижимость, автомобиль"],
+    ["Manzil va sayohat tarixi","Адрес и история поездок","mygov.uz orqali","Через mygov.uz"],
+    ["Oila hujjatlari","Семейные документы","Kerak bo'lganda taqdim etiladi","Предоставляется при необходимости"],
+    ["Sayohat hujjatlari","Документы поездки","Reja, sug'urta, bilet, bron","План, страховка, билет, бронь"],
   ]},
   { key:"brazil", flag:"🇧🇷", name:"Braziliya", nameRu:"Бразилия", items:[
-    ["Pasport","Kamida 6 oy amal qilishi kerak","Должен действовать минимум 6 месяцев"],
-    ["Anketa va foto","E-konsullik portali orqali","Через портал электронного консульства"],
-    ["Uchrashuv tasdiqnomasi","Konsullikka yozilish","Запись в консульство"],
-    ["Moliyaviy hujjatlar","3 oylik bank ko'chirmasi","Банковская выписка за 3 месяца"],
-    ["Ish/tadbirkorlik holati","NOC, payslip yoki biznes hujjat","NOC, расчётный лист или бизнес-документ"],
-    ["Aviabilet va turar joy","Bron nusxalari","Копии брони"],
-    ["Sayohat sug'urtasi","Majburiy hujjat","Обязательный документ"],
-    ["Sayohat rejasi va cover letter","Maqsad va marshrut","Цель и маршрут"],
-    ["Qo'shimcha hujjatlar","Holatga qarab talab qilinadi","Требуется в зависимости от ситуации"],
+    ["Pasport","Паспорт","Kamida 6 oy amal qilishi kerak","Должен действовать минимум 6 месяцев"],
+    ["Anketa va foto","Анкета и фото","E-konsullik portali orqali","Через портал электронного консульства"],
+    ["Uchrashuv tasdiqnomasi","Подтверждение записи","Konsullikka yozilish","Запись в консульство"],
+    ["Moliyaviy hujjatlar","Финансовые документы","3 oylik bank ko'chirmasi","Банковская выписка за 3 месяца"],
+    ["Ish/tadbirkorlik holati","Статус работы/бизнеса","NOC, payslip yoki biznes hujjat","NOC, расчётный лист или бизнес-документ"],
+    ["Aviabilet va turar joy","Авиабилет и проживание","Bron nusxalari","Копии брони"],
+    ["Sayohat sug'urtasi","Туристическая страховка","Majburiy hujjat","Обязательный документ"],
+    ["Sayohat rejasi va cover letter","План поездки и cover letter","Maqsad va marshrut","Цель и маршрут"],
+    ["Qo'shimcha hujjatlar","Дополнительные документы","Holatga qarab talab qilinadi","Требуется в зависимости от ситуации"],
   ]},
 ];
 
 const WORK_CHECKLIST = [
-  ["Pasport hujjatlari","Xalqaro pasport, ID karta","Загранпаспорт, ID-карта"],
-  ["Bank kartalari aylanmasi","12 va 4 oylik spravkalar","Справки за 12 и 4 месяца"],
-  ["Ish va daromad ma'lumotlari","mygov.uz, soliq.uz orqali","Через mygov.uz, soliq.uz"],
-  ["Biznes hujjatlari","Ish beruvchi tomonidan taqdim etiladi","Предоставляется работодателем"],
-  ["Mulk va aktivlar","Ko'chmas mulk, avtomobil guvohnomasi","Недвижимость, свидетельство на авто"],
-  ["Manzil va sayohat tarixi","mygov.uz orqali tasdiqlanadi","Подтверждается через mygov.uz"],
-  ["Oila hujjatlari","Kerak bo'lganda taqdim etiladi","Предоставляется при необходимости"],
-  ["Sayohat hujjatlari","Reja, sug'urta, bilet, bron","План, страховка, билет, бронь"],
+  ["Pasport hujjatlari","Паспортные документы","Xalqaro pasport, ID karta","Загранпаспорт, ID-карта"],
+  ["Bank kartalari aylanmasi","Оборот по банковским картам","12 va 4 oylik spravkalar","Справки за 12 и 4 месяца"],
+  ["Ish va daromad ma'lumotlari","Данные о работе и доходе","mygov.uz, soliq.uz orqali","Через mygov.uz, soliq.uz"],
+  ["Biznes hujjatlari","Бизнес-документы","Ish beruvchi tomonidan taqdim etiladi","Предоставляется работодателем"],
+  ["Mulk va aktivlar","Имущество и активы","Ko'chmas mulk, avtomobil guvohnomasi","Недвижимость, свидетельство на авто"],
+  ["Manzil va sayohat tarixi","Адрес и история поездок","mygov.uz orqali tasdiqlanadi","Подтверждается через mygov.uz"],
+  ["Oila hujjatlari","Семейные документы","Kerak bo'lganda taqdim etiladi","Предоставляется при необходимости"],
+  ["Sayohat hujjatlari","Документы поездки","Reja, sug'urta, bilet, bron","План, страховка, билет, бронь"],
 ];
 
 const STUDENT_CHECKLIST = [
-  ["Pasport va ID","Xalqaro pasport, ID karta","Загранпаспорт, ID-карта"],
-  ["Bank kartalari aylanmasi","Shaxsiy hisob ko'chirmasi","Личная банковская выписка"],
-  ["O'qish hujjatlari","Study certificate, no objection certificate","Study certificate, no objection certificate"],
-  ["Homiyning hujjatlari","Pasport, ish, daromad, bank aylanmasi, mulk","Паспорт, работа, доход, оборот, имущество"],
-  ["Qo'llab-quvvatlash xati","Homiy tomonidan yozilgan xat","Письмо от спонсора"],
-  ["Sayohat hujjatlari","Reja, aviabilet, mehmonxona bron","План, авиабилет, бронь отеля"],
-  ["Tibbiy sug'urta","Butun o'qish davri uchun","На весь период учёбы"],
-  ["Ota-ona roziligi","18 yoshgacha bo'lganlar uchun (notarial)","Для лиц до 18 лет (нотариально)"],
-  ["Oila hujjatlari","Nikoh/farzand guvohnomasi (agar kerak bo'lsa)","Свидетельство о браке/рождении (если нужно)"],
+  ["Pasport va ID","Паспорт и ID","Xalqaro pasport, ID karta","Загранпаспорт, ID-карта"],
+  ["Bank kartalari aylanmasi","Оборот по банковским картам","Shaxsiy hisob ko'chirmasi","Личная банковская выписка"],
+  ["O'qish hujjatlari","Документы об учёбе","Study certificate, no objection certificate","Study certificate, no objection certificate"],
+  ["Homiyning hujjatlari","Документы спонсора","Pasport, ish, daromad, bank aylanmasi, mulk","Паспорт, работа, доход, оборот, имущество"],
+  ["Qo'llab-quvvatlash xati","Письмо поддержки","Homiy tomonidan yozilgan xat","Письмо от спонсора"],
+  ["Sayohat hujjatlari","Документы поездки","Reja, aviabilet, mehmonxona bron","План, авиабилет, бронь отеля"],
+  ["Tibbiy sug'urta","Медицинская страховка","Butun o'qish davri uchun","На весь период учёбы"],
+  ["Ota-ona roziligi","Согласие родителей","18 yoshgacha bo'lganlar uchun (notarial)","Для лиц до 18 лет (нотариально)"],
+  ["Oila hujjatlari","Семейные документы","Nikoh/farzand guvohnomasi (agar kerak bo'lsa)","Свидетельство о браке/рождении (если нужно)"],
 ];
 
 const WORK_COUNTRIES = [
@@ -468,14 +468,15 @@ QOIDALAR:
 // ---------------------------------------------------------------
 // FOYDALANUVCHI HOLATI
 // ---------------------------------------------------------------
-const userState = new Map(); // chatId -> { mode, chanceStep, chanceScore, chanceAnswers, screenMsgId, pendingPayload }
+const userState = new Map(); // chatId -> { mode, chanceStep, chanceScore, chanceAnswers, screenMsgId, pendingPayload, docCheckCountry, docCheckMatched }
 function getState(chatId) {
-  if (!userState.has(chatId)) userState.set(chatId, { mode: 'idle', chanceStep: 0, chanceScore: {}, chanceAnswers: {}, screenMsgId: null, pendingPayload: null });
+  if (!userState.has(chatId)) userState.set(chatId, { mode: 'idle', chanceStep: 0, chanceScore: {}, chanceAnswers: {}, screenMsgId: null, pendingPayload: null, docCheckCountry: null, docCheckMatched: [] });
   return userState.get(chatId);
 }
 function clearPendingState(chatId) {
   const s = getState(chatId);
   s.mode = 'idle'; s.chanceStep = 0; s.chanceScore = {}; s.chanceAnswers = {};
+  s.docCheckCountry = null; s.docCheckMatched = [];
   // pendingPayload ataylab tozalanmaydi — registratsiyadan keyin ishlatiladi,
   // handleStartPayload chaqirilgach qo'lda tozalanadi (kerak bo'lsa)
 }
@@ -576,16 +577,12 @@ const CHANCE_QUESTIONS = [
       {uz:"Yo'q",ru:"Нет",points:0},
     ]},
   // --- Safar tarixi ---
-  { key:'travelHistory', q:{uz:"Oxirgi 5 yilda nechta xorijiy safar qilgansiz?", ru:"Сколько поездок за границу было за 5 лет?"},
+  { key:'travelRegion', q:{uz:"Ilgari qaysi mintaqaga sayohat qilgansiz?", ru:"В какой регион вы раньше путешествовали?"},
     options:[
-      {uz:"3 va undan ko'p",ru:"3 и более",points:20},
-      {uz:"1–2 marta",ru:"1–2 раза",points:12},
-      {uz:"Hech qachon",ru:"Ни разу",points:5},
-    ]},
-  { key:'priorVisa', q:{uz:"Shengen/AQSH/UK/Yaponiya vizasi bo'lganmi?", ru:"Была ли виза Шенгена/США/Великобритании/Японии?"},
-    options:[
-      {uz:"Ha, muddatida qaytganman",ru:"Да, вернулся вовремя",points:15},
-      {uz:"Yo'q",ru:"Нет",points:5},
+      {uz:"Shengen (Yevropa)",ru:"Шенген (Европа)",points:20},
+      {uz:"AQSH/UK/Kanada/Avstraliya",ru:"США/Великобритания/Канада/Австралия",points:18},
+      {uz:"Yaqin davlatlar (Rossiya, Turkiya va h.k.)",ru:"Соседние страны (Россия, Турция и т.д.)",points:10},
+      {uz:"Hech qayerga chiqmaganman",ru:"Никогда не выезжал(а)",points:3},
     ]},
   { key:'rejection', q:{uz:"Oldin viza rad javobi bo'lganmi?", ru:"Были ли раньше отказы в визе?"},
     options:[
@@ -635,7 +632,7 @@ const CHANCE_CATEGORIES = [
   { key: 'family', keys: ['maritalStatus', 'familyTravel', 'assets'],
     label: { uz: "Oila va qaytish asoslari", ru: "Семья и основания для возвращения" },
     tip: { uz: "Mulk yoki oilaviy bog'liqliklaringizni hujjat bilan tasdiqlang", ru: "Подтвердите документами имущество или семейные связи" } },
-  { key: 'travelHistory', keys: ['travelHistory', 'priorVisa', 'rejection'],
+  { key: 'travelHistory', keys: ['travelRegion', 'rejection'],
     label: { uz: "Sayohat tarixi", ru: "История поездок" },
     tip: { uz: "Aniq va batafsil sayohat rejasi tayyorlang, bu tajriba yo'qligini qoplaydi", ru: "Подготовьте чёткий план поездки — это компенсирует отсутствие опыта" } },
 ];
@@ -655,6 +652,66 @@ function analyzeChanceCategories(chanceScore, lang) {
   const strong = sorted.slice(0, 2).filter(c => c.pct >= 60);
   const weak = [...sorted].reverse().slice(0, 2).filter(c => c.pct < 70);
   return { strong, weak };
+}
+
+// ---------------------------------------------------------------
+// MAMLAKATLAR BO'YICHA ALOHIDA VIZA IMKONIYATI — har biri o'z
+// qoidasiga ega (Hong Kong har doim 100%, Yaponiya ish bilan 95%,
+// Shengen davlatlari safar tarixiga qarab farq qiladi va h.k.)
+// ---------------------------------------------------------------
+const COUNTRY_CHANCE_LIST = [
+  { key: 'hongkong', name: { uz: 'Hong Kong', ru: 'Гонконг' }, flag: '🇭🇰' },
+  { key: 'japan', name: { uz: 'Yaponiya', ru: 'Япония' }, flag: '🇯🇵' },
+  { key: 'france', name: { uz: 'Fransiya', ru: 'Франция' }, flag: '🇫🇷' },
+  { key: 'spain', name: { uz: 'Ispaniya', ru: 'Испания' }, flag: '🇪🇸' },
+  { key: 'germany', name: { uz: 'Germaniya', ru: 'Германия' }, flag: '🇩🇪' },
+  { key: 'austria', name: { uz: 'Avstriya', ru: 'Австрия' }, flag: '🇦🇹' },
+  { key: 'hungary', name: { uz: 'Vengriya', ru: 'Венгрия' }, flag: '🇭🇺' },
+  { key: 'bulgaria', name: { uz: 'Bolgariya', ru: 'Болгария' }, flag: '🇧🇬' },
+  { key: 'lithuania', name: { uz: 'Litva', ru: 'Литва' }, flag: '🇱🇹' },
+  { key: 'usa', name: { uz: 'AQSH', ru: 'США' }, flag: '🇺🇸' },
+  { key: 'uk', name: { uz: 'Buyuk Britaniya', ru: 'Великобритания' }, flag: '🇬🇧' },
+  { key: 'canada', name: { uz: 'Kanada', ru: 'Канада' }, flag: '🇨🇦' },
+  { key: 'australia', name: { uz: 'Avstraliya', ru: 'Австралия' }, flag: '🇦🇺' },
+];
+
+const NEEDS_SCHENGEN_HISTORY = ['germany', 'austria', 'hungary', 'bulgaria', 'lithuania'];
+
+function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+
+function calculateCountryScores(chatId) {
+  const s = getState(chatId);
+  const answers = s.chanceAnswers || {};
+  const scoreMap = s.chanceScore || {};
+
+  const baseTotal = Object.values(scoreMap).reduce((a, b) => a + b, 0);
+  const basePct = Math.round((baseTotal / CHANCE_MAX_SCORE) * 100);
+
+  const travelRegionIdx = answers['travelRegion']; // 0=Shengen,1=USA/UK/CA/AU,2=yaqin,3=hech qayerga
+  const visitedSchengen = travelRegionIdx === 0;
+
+  const employmentIdx = answers['employment']; // 0 = "Rasmiy ishlayman"
+  const incomeIdx = answers['income']; // 0 yoki 1 = eng yaxshi ikkita variant
+  const hasGoodJob = employmentIdx === 0 && (incomeIdx === 0 || incomeIdx === 1);
+
+  const results = {};
+  results.hongkong = 100; // Hong Kong deyarli hech qachon rad etmaydi
+  results.japan = hasGoodJob ? 95 : clamp(basePct + 8, 15, 90);
+  results.france = clamp(basePct + 12, 20, 98); // hujjat kuchli bo'lsa, safar tarixisiz ham beriladi
+  results.spain = clamp(basePct + 12, 20, 98);
+
+  const schengenAdj = visitedSchengen ? 12 : -18;
+  NEEDS_SCHENGEN_HISTORY.forEach(key => {
+    results[key] = clamp(basePct + schengenAdj, 5, 95);
+  });
+
+  // AQSH/UK/Kanada/Avstraliya — bir xil, standart baholash
+  results.usa = basePct;
+  results.uk = basePct;
+  results.canada = basePct;
+  results.australia = basePct;
+
+  return { results, visitedSchengen, basePct };
 }
 
 function recommendCourse(chatId) {
@@ -726,6 +783,24 @@ function computeChanceResult(chatId) {
     ? `\n\n${weakLabel}\n` + weak.map(c => `• ${c.label[lang]} — ${c.tip[lang]}`).join('\n')
     : '';
 
+  // ---- Har bir mamlakat bo'yicha alohida foiz ----
+  const { results: countryResults, visitedSchengen } = calculateCountryScores(chatId);
+  const countryLabel = lang === 'ru' ? '🌍 Ваши шансы по странам:' : "🌍 Mamlakatlar bo'yicha imkoniyatingiz:";
+  const countryLines = COUNTRY_CHANCE_LIST.map(c => `${c.flag} ${c.name[lang]} — ${countryResults[c.key]}%`).join('\n');
+
+  let notesText = '';
+  if (!visitedSchengen) {
+    notesText += lang === 'ru'
+      ? "\n\n⚠️ Для Германии/Австрии/Венгрии/Болгарии/Литвы: рекомендуется сначала съездить в любую другую страну Шенгена и вернуться — это заметно повышает шансы."
+      : "\n\n⚠️ Germaniya/Avstriya/Vengriya/Bolgariya/Litva uchun: avval boshqa Shengen davlatiga bir marta borib-qaytish tavsiya etiladi — bu imkoniyatni sezilarli oshiradi.";
+  }
+  notesText += lang === 'ru'
+    ? "\n💡 Венгрия: посольство перед выдачей визы может запросить УЖЕ ОПЛАЧЕННЫЕ авиабилет и отель."
+    : "\n💡 Vengriya: elchixona viza berishdan oldin TO'LANGAN aviabilet va mehmonxona bronini so'rashi mumkin.";
+  notesText += lang === 'ru'
+    ? "\n💡 Болгария: при подаче заявки авиабилет и отель должны быть ОПЛАЧЕНЫ на 100%."
+    : "\n💡 Bolgariya: ariza topshirilganda aviabilet va mehmonxona 100% TO'LANGAN bo'lishi SHART.";
+
   const courseKey = recommendCourse(chatId);
   const course = COURSE_CHANNELS[courseKey];
   const courseName = lang === 'ru' ? course.nameRu : course.name;
@@ -733,7 +808,7 @@ function computeChanceResult(chatId) {
     ? `\n\n🎬 Рекомендуем: "${courseName}" — ${course.price}. Этот курс даёт подготовку именно под вашу ситуацию. Купить можно в разделе "Видеокурсы".`
     : `\n\n🎬 Sizga tavsiya etamiz: "${courseName}" — ${course.price}. Bu kurs aynan sizning holatingizga mos tayyorgarlikni beradi. "Video darsliklar" bo'limidan sotib olishingiz mumkin.`;
 
-  return `📊 ${t.chance_result_head}: ${pct}%\n\n${verdict}${strongText}${weakText}\n\n${t.chance_disclaimer}${courseText}`;
+  return `📊 ${t.chance_result_head}: ${pct}%\n\n${verdict}${strongText}${weakText}\n\n${countryLabel}\n${countryLines}${notesText}\n\n${t.chance_disclaimer}${courseText}`;
 }
 
 // ---------------------------------------------------------------
@@ -883,7 +958,7 @@ bot.on('callback_query', async (query) => {
   const wasPostRegLang = stateBefore.mode === 'post_reg_lang';
   const savedPendingPayload = stateBefore.pendingPayload;
 
-  if (!data.startsWith('chance_ans_')) clearPendingState(chatId);
+  if (!data.startsWith('chance_ans_') && data !== 'doccheck_finish') clearPendingState(chatId);
 
   if (data === 'menu') return sendMainMenu(chatId);
 
@@ -969,7 +1044,7 @@ bot.on('callback_query', async (query) => {
     u.interestedIn = `${c.name} (sayohat viza)`;
     saveDB();
     sendAdminProfileCard(chatId, `Checklist ko'rdi: ${c.name} (sayohat viza)`);
-    const list = c.items.map((it, i) => `${i + 1}. ${it[0]} — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
+    const list = c.items.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]} — ${lang === 'ru' ? it[3] : it[2]}`).join('\n');
     return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
   if (data.startsWith('chk_work_')) {
@@ -979,7 +1054,7 @@ bot.on('callback_query', async (query) => {
     u.interestedIn = `${c.name} (ishchi viza)`;
     saveDB();
     sendAdminProfileCard(chatId, `Checklist ko'rdi: ${c.name} (ishchi viza)`);
-    const list = WORK_CHECKLIST.map((it, i) => `${i + 1}. ${it[0]} — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
+    const list = WORK_CHECKLIST.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]} — ${lang === 'ru' ? it[3] : it[2]}`).join('\n');
     return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
   if (data.startsWith('chk_student_')) {
@@ -989,7 +1064,7 @@ bot.on('callback_query', async (query) => {
     u.interestedIn = `${c.name} (talaba vizasi)`;
     saveDB();
     sendAdminProfileCard(chatId, `Checklist ko'rdi: ${c.name} (talaba vizasi)`);
-    const list = STUDENT_CHECKLIST.map((it, i) => `${i + 1}. ${it[0]} — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
+    const list = STUDENT_CHECKLIST.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]} — ${lang === 'ru' ? it[3] : it[2]}`).join('\n');
     return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
   if (data === 'svc_faq') {
@@ -1006,8 +1081,57 @@ bot.on('callback_query', async (query) => {
 
   // ---- Hujjatni AI tekshirish ----
   if (data === 'docs') {
-    getState(chatId).mode = 'doc';
-    return renderScreen(chatId, t.doc_prompt, backButton(chatId));
+    const rows = COUNTRIES.map(c => ([{ text: `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}`, callback_data: `doccheck_${c.key}` }]));
+    rows.push([{ text: t.to_menu, callback_data: 'menu' }]);
+    const head = lang === 'ru' ? 'Для какой страны хотите проверить документы?' : "Qaysi mamlakat uchun hujjatlarni tekshirmoqchisiz?";
+    return renderScreen(chatId, head, { inline_keyboard: rows });
+  }
+  if (data.startsWith('doccheck_') && data !== 'doccheck_finish') {
+    const key = data.replace('doccheck_', '');
+    const country = COUNTRIES.find(c => c.key === key);
+    if (!country) return;
+    const s2 = getState(chatId);
+    s2.mode = 'doc';
+    s2.docCheckCountry = key;
+    s2.docCheckMatched = [];
+    const list = country.items.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]}`).join('\n');
+    const head = lang === 'ru'
+      ? `${country.flag} ${country.nameRu} — необходимые документы:\n\n${list}\n\nОтправляйте документы по одному (фото или файл). Когда закончите — нажмите кнопку ниже.`
+      : `${country.flag} ${country.name} — kerakli hujjatlar:\n\n${list}\n\nHujjatlaringizni birma-bir yuboring (rasm yoki fayl). Tugagach — pastdagi tugmani bosing.`;
+    return renderScreen(chatId, head, { inline_keyboard: [
+      [{ text: lang === 'ru' ? '✅ Завершить проверку' : "✅ Tekshirishni yakunlash", callback_data: 'doccheck_finish' }],
+      [{ text: t.to_menu, callback_data: 'menu' }],
+    ] });
+  }
+  if (data === 'doccheck_finish') {
+    const s2 = getState(chatId);
+    const country = COUNTRIES.find(c => c.key === s2.docCheckCountry);
+    if (!country) { clearPendingState(chatId); return sendMainMenu(chatId); }
+    const matchedCount = (s2.docCheckMatched || []).length;
+    const totalCount = country.items.length;
+    const readyPct = Math.round((matchedCount / totalCount) * 100);
+
+    const matchedNames = (s2.docCheckMatched || []).map(idx => lang === 'ru' ? country.items[idx][1] : country.items[idx][0]);
+    const missingNames = country.items.filter((it, i) => !(s2.docCheckMatched || []).includes(i)).map(it => lang === 'ru' ? it[1] : it[0]);
+
+    const matchedLabel = lang === 'ru' ? '✅ Получено:' : "✅ Qabul qilingan:";
+    const missingLabel = lang === 'ru' ? '❌ Ещё не хватает:' : "❌ Hali yetishmayapti:";
+    const matchedText = matchedNames.length ? `\n\n${matchedLabel}\n` + matchedNames.map(n => `• ${n}`).join('\n') : '';
+    const missingText = missingNames.length ? `\n\n${missingLabel}\n` + missingNames.map(n => `• ${n}`).join('\n') : '';
+
+    const head = lang === 'ru'
+      ? `📊 Готовность документов (${country.nameRu}): ${readyPct}%${matchedText}${missingText}\n\n⚠️ Это AI-анализ, не официальная проверка.`
+      : `📊 Hujjatlar tayyorligi (${country.name}): ${readyPct}%${matchedText}${missingText}\n\n⚠️ Bu AI tahlili, rasmiy tekshiruv emas.`;
+
+    const u = getUser(chatId);
+    u.docHistory = u.docHistory || [];
+    u.docHistory.push({ type: `${country.name} — ${readyPct}% tayyor`, date: new Date().toISOString() });
+    u.docHistory = u.docHistory.slice(-10);
+    saveDB();
+    sendAdminProfileCard(chatId, `Hujjat tekshiruvini yakunladi: ${country.name} — ${readyPct}% tayyor`);
+
+    clearPendingState(chatId);
+    return renderScreen(chatId, head, backButton(chatId));
   }
 
   // ---- Video darsliklar ----
@@ -1304,7 +1428,11 @@ bot.on('message', async (msg) => {
 
   // ---- Hujjat fotosi/fayli — CHUQUR AI TAHLILI (Claude vision, aniq ma'lumotlar bilan) ----
   if ((msg.photo || isImageDocument) && s.mode !== 'registering' && s.mode !== 'lead_consult' && s.mode !== 'lead_partner') {
+    const docCheckCountry = s.docCheckCountry; // clearPendingState hali chaqirilmagan, shuning uchun mavjud
+    const docCheckMatchedBefore = (s.docCheckMatched || []).slice(); // nusxa olamiz, chunki keyingi qator uni tozalaydi
     clearPendingState(chatId);
+    if (docCheckCountry) { getState(chatId).docCheckCountry = docCheckCountry; getState(chatId).docCheckMatched = docCheckMatchedBefore; }
+
     const analyzing = await bot.sendMessage(chatId, t.doc_analyzing);
     let stage = 'boshlanish';
     try {
@@ -1318,6 +1446,64 @@ bot.on('message', async (msg) => {
       const rawMediaType = (msg.document && msg.document.mime_type) || contentType;
       const mediaType = sanitizeImageMediaType(rawMediaType);
 
+      const country = docCheckCountry ? COUNTRIES.find(c => c.key === docCheckCountry) : null;
+
+      if (country) {
+        // ---- CHECKLIST-ASOSLI TEKSHIRUV: hujjat qaysi bandga mos kelishini aniqlaydi ----
+        stage = 'AI orqali checklistga solishtirish';
+        const checklistText = country.items.map((it, i) => `${i + 1}. ${it[0]}`).join('\n');
+        const response = await anthropic.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 300,
+          system: `Siz hujjat tekshiruvchi AI'siz. Foydalanuvchi "${country.name}" vizasi uchun quyidagi hujjatlar ro'yxatidan birini yubordi:
+${checklistText}
+
+Rasmni ko'rib, u YUQORIDAGI ro'yxatdagi QAYSI raqamga (band raqamiga) eng mos kelishini aniqlang.
+Javobingiz FAQAT shu formatda bo'lsin, boshqa hech narsa yozmang:
+BAND: <raqam yoki "0" agar mos kelmasa>
+SIFAT: <qisqa, 1 gap — aniq/sifatli yoki muammo bormi>`,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+              { type: 'text', text: "Bu hujjat qaysi bandga mos keladi?" },
+            ],
+          }],
+        });
+        stage = "javobni qayta ishlash";
+        const feedback = response.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
+        const bandMatch = feedback.match(/BAND:\s*(\d+)/i);
+        const sifatMatch = feedback.match(/SIFAT:\s*([^\n]+)/i);
+        const bandNum = bandMatch ? parseInt(bandMatch[1], 10) : 0;
+        const sifatText = sifatMatch ? sifatMatch[1].trim() : '';
+
+        await bot.deleteMessage(chatId, analyzing.message_id).catch(() => {});
+
+        const sCur = getState(chatId);
+        if (bandNum >= 1 && bandNum <= country.items.length) {
+          const idx = bandNum - 1;
+          if (!sCur.docCheckMatched.includes(idx)) sCur.docCheckMatched.push(idx);
+          const itemName = lang === 'ru' ? country.items[idx][1] : country.items[idx][0];
+          const progressText = lang === 'ru'
+            ? `✅ Принято: "${itemName}"\n${sifatText}\n\nПрогресс: ${sCur.docCheckMatched.length}/${country.items.length}`
+            : `✅ Qabul qilindi: "${itemName}"\n${sifatText}\n\nJarayon: ${sCur.docCheckMatched.length}/${country.items.length}`;
+          await sendContent(chatId, progressText, { reply_markup: { inline_keyboard: [
+            [{ text: lang === 'ru' ? '✅ Завершить проверку' : "✅ Tekshirishni yakunlash", callback_data: 'doccheck_finish' }],
+            [{ text: t.to_menu, callback_data: 'menu' }],
+          ] } });
+        } else {
+          const noMatchText = lang === 'ru'
+            ? `⚠️ Не удалось точно определить, к какому пункту относится этот документ. Попробуйте отправить более чёткое фото, или отправьте следующий документ.`
+            : `⚠️ Bu hujjat ro'yxatdagi qaysi bandga tegishli ekanini aniq belgilay olmadim. Aniqroq rasm yuboring yoki keyingi hujjatni yuboring.`;
+          await sendContent(chatId, noMatchText, { reply_markup: { inline_keyboard: [
+            [{ text: lang === 'ru' ? '✅ Завершить проверку' : "✅ Tekshirishni yakunlash", callback_data: 'doccheck_finish' }],
+            [{ text: t.to_menu, callback_data: 'menu' }],
+          ] } });
+        }
+        return;
+      }
+
+      // ---- UMUMIY TAHLIL (checklist tanlanmagan bo'lsa — orqaga moslik) ----
       stage = 'AI orqali tahlil qilish';
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
