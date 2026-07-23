@@ -106,6 +106,18 @@ function findUserByPromoCode(code) {
 // (tashqi kutubxonaga bog'liq emas, hech qachon "topilmadi" xatosi
 // bo'lmaydi — bu oldingi fetch/node-fetch muammosini butunlay yechadi)
 // ---------------------------------------------------------------
+// Anthropic API faqat aniq shu 4 ta media_type qiymatini qabul qiladi.
+// Telegram/server ba'zan "image/jpeg; charset=binary" kabi qo'shimcha
+// matn bilan qaytarishi mumkin — buni tozalab, xavfsiz standart qiymatga
+// (image/jpeg) tushiramiz agar tanib bo'lmasa.
+const ALLOWED_IMAGE_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+function sanitizeImageMediaType(raw) {
+  const base = (raw || '').split(';')[0].trim().toLowerCase();
+  if (ALLOWED_IMAGE_MEDIA_TYPES.includes(base)) return base;
+  if (base === 'image/jpg') return 'image/jpeg'; // keng tarqalgan noto'g'ri yozilish
+  return 'image/jpeg'; // xavfsiz standart — Telegram fotolari deyarli doim JPEG
+}
+
 function downloadFileAsBuffer(url, redirectCount = 0) {
   return new Promise((resolve, reject) => {
     if (redirectCount > 5) return reject(new Error('Juda ko\'p qayta yo\'naltirish (redirect)'));
@@ -1289,7 +1301,8 @@ bot.on('message', async (msg) => {
       const sizeMb = buffer.length / (1024 * 1024);
       if (sizeMb > 4.5) throw new Error(`Rasm hajmi juda katta (${sizeMb.toFixed(1)}MB) — 4.5MB dan kichikroq rasm yuboring`);
       const base64 = buffer.toString('base64');
-      const mediaType = (msg.document && msg.document.mime_type) || contentType;
+      const rawMediaType = (msg.document && msg.document.mime_type) || contentType;
+      const mediaType = sanitizeImageMediaType(rawMediaType);
 
       stage = 'AI orqali tahlil qilish';
       const response = await anthropic.messages.create({
