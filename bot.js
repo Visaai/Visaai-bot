@@ -17,6 +17,11 @@ const https = require('https'); // Node.js o'zida mavjud — hech qanday o'rnati
 const TelegramBot = require('node-telegram-bot-api');
 const Anthropic = require('@anthropic-ai/sdk');
 
+// Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
+// agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
+const BOT_VERSION = '2026-07-23-v9 (media_type tuzatish + til tanlash + stateless hujjat tahlili)';
+const botStartedAt = new Date().toLocaleString('uz-UZ');
+
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 // Bir nechta admin — .env faylida vergul bilan ajratib yoziladi:
 // ADMIN_CHAT_IDS=111111111,222222222,333333333
@@ -1129,6 +1134,15 @@ bot.onText(/^\/id(?:@\w+)?$/, (msg) => {
   bot.sendMessage(msg.chat.id, `Sizning chat ID'ingiz: ${msg.chat.id}`);
 });
 
+// ---------------------------------------------------------------
+// /version — qaysi kod versiyasi ishlab turganini tekshirish uchun.
+// Har safar bot.js yangilanganda BOT_VERSION o'zgaradi — shu orqali
+// Render'da haqiqatan eng so'nggi kod deploy bo'lganini bilib olasiz.
+// ---------------------------------------------------------------
+bot.onText(/^\/version$/, (msg) => {
+  bot.sendMessage(msg.chat.id, `🤖 Bot versiyasi: ${BOT_VERSION}\n\nIshga tushgan vaqti: ${botStartedAt}`);
+});
+
 bot.onText(/\/stats/, (msg) => {
   const chatId = msg.chat.id;
   if (!isAdmin(chatId)) return;
@@ -1431,4 +1445,4 @@ process.on('uncaughtException', (err) => {
   notifyAdmins(`🔴 Kutilmagan bot xatosi (uncaughtException): ${err && err.message ? err.message : err}`);
 });
 
-console.log('VizaAI bot (yakuniy versiya) ishga tushdi ✅');
+console.log(`VizaAI bot ishga tushdi ✅ | Versiya: ${BOT_VERSION}`);
