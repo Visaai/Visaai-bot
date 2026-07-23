@@ -18,7 +18,21 @@ const TelegramBot = require('node-telegram-bot-api');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
+// Bir nechta admin — .env faylida vergul bilan ajratib yoziladi:
+// ADMIN_CHAT_IDS=111111111,222222222,333333333
+// (Eski ADMIN_CHAT_ID ham ishlaydi — orqaga moslik uchun)
+const ADMIN_CHAT_IDS = (process.env.ADMIN_CHAT_IDS || process.env.ADMIN_CHAT_ID || '')
+  .split(',').map(s => s.trim()).filter(Boolean);
+const ADMIN_CHAT_ID = ADMIN_CHAT_IDS[0] || null; // ba'zi eski kod joylarida hali ishlatiladi
+
+function isAdmin(chatId) {
+  return ADMIN_CHAT_IDS.includes(String(chatId));
+}
+function notifyAdmins(text) {
+  ADMIN_CHAT_IDS.forEach(id => {
+    bot.sendMessage(id, text).catch(() => {});
+  });
+}
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
@@ -78,7 +92,7 @@ function findUserByPromoCode(code) {
 // xarid qilganda/qilmaganda) sizga qisqa, tuzilgan xulosa keladi.
 // ---------------------------------------------------------------
 async function sendAdminProfileCard(chatId, event) {
-  if (!ADMIN_CHAT_ID) return;
+  if (ADMIN_CHAT_IDS.length === 0) return;
   const u = usersDB[String(chatId)];
   if (!u) return;
 
@@ -102,7 +116,7 @@ async function sendAdminProfileCard(chatId, event) {
 
 ☎️ Kimga qo'ng'iroq: /izoh_${chatId} <izoh>`;
 
-  bot.sendMessage(ADMIN_CHAT_ID, card).catch(() => {});
+  notifyAdmins(card);
 }
 
 
@@ -879,7 +893,7 @@ bot.on('callback_query', async (query) => {
 // ---------------------------------------------------------------
 bot.onText(/\/tasdiqla (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
-  if (String(chatId) !== String(ADMIN_CHAT_ID)) return;
+  if (!isAdmin(chatId)) return;
   const targetId = match[1].trim();
   const purchase = pendingPurchases.get(targetId);
   if (!purchase) return bot.sendMessage(chatId, "Bu chat_id kutilayotgan xaridlar ro'yxatida topilmadi.");
@@ -909,9 +923,17 @@ bot.onText(/\/tasdiqla (.+)/, async (msg, match) => {
 // ---------------------------------------------------------------
 // ADMIN: statistika — /stats
 // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// /id — istalgan kim ham o'zining chat_id'sini bilib olishi uchun
+// (yangi admin qo'shishda shu ID'ni ADMIN_CHAT_IDS ro'yxatiga qo'shasiz)
+// ---------------------------------------------------------------
+bot.onText(/^\/id(?:@\w+)?$/, (msg) => {
+  bot.sendMessage(msg.chat.id, `Sizning chat ID'ingiz: ${msg.chat.id}`);
+});
+
 bot.onText(/\/stats/, (msg) => {
   const chatId = msg.chat.id;
-  if (String(chatId) !== String(ADMIN_CHAT_ID)) return;
+  if (!isAdmin(chatId)) return;
 
   const users = Object.entries(usersDB);
   const total = users.length;
@@ -935,7 +957,7 @@ bot.onText(/\/stats/, (msg) => {
 // ---------------------------------------------------------------
 bot.onText(/\/qongiroq/, (msg) => {
   const chatId = msg.chat.id;
-  if (String(chatId) !== String(ADMIN_CHAT_ID)) return;
+  if (!isAdmin(chatId)) return;
 
   const notBuyers = Object.entries(usersDB).filter(([, u]) =>
     !u.purchases.some(p => p.status === 'confirmed')
@@ -964,7 +986,7 @@ bot.onText(/\/qongiroq/, (msg) => {
 // ---------------------------------------------------------------
 bot.onText(/\/izoh_(\d+) (.+)/, (msg, match) => {
   const chatId = msg.chat.id;
-  if (String(chatId) !== String(ADMIN_CHAT_ID)) return;
+  if (!isAdmin(chatId)) return;
   const targetId = match[1];
   const note = match[2];
   const u = usersDB[targetId];
@@ -1008,9 +1030,7 @@ bot.on('message', async (msg) => {
       : `Rahmat! Ro'yxatdan o'tdingiz ✅\n\n🎁 Sizning shaxsiy promo kodingiz: ${u.promoCode}\nDo'stingiz bilan bo'lishing — ikkalangiz ham chegirma olasiz.`;
     await bot.sendMessage(chatId, welcomeBack, { reply_markup: { remove_keyboard: true } });
 
-    if (ADMIN_CHAT_ID) {
-      bot.sendMessage(ADMIN_CHAT_ID, `🆕 Yangi ro'yxatdan o'tish!\n\n👤 ${userLabel}\n📱 ${phone}`).catch(() => {});
-    }
+    notifyAdmins(`🆕 Yangi ro'yxatdan o'tish!\n\n👤 ${userLabel}\n📱 ${phone}`);
 
     return handleStartPayload(chatId, pendingPayload, msg.from);
   }
@@ -1085,9 +1105,7 @@ Oxirida albatta eslating: bu AI tahlili, rasmiy tekshiruv o'rnini bosmaydi.`,
       await bot.deleteMessage(chatId, analyzing.message_id).catch(() => {});
       await sendContent(chatId, t.ai_error, { reply_markup: backButton(chatId) });
       // Admin uchun aniq xato matni — muammoni tezroq topish uchun
-      if (ADMIN_CHAT_ID) {
-        bot.sendMessage(ADMIN_CHAT_ID, `⚠️ Hujjat tahlilida xato:\n${err.message || err}\n\nFoydalanuvchi: ${userLabel}`).catch(() => {});
-      }
+      notifyAdmins(`⚠️ Hujjat tahlilida xato:\n${err.message || err}\n\nFoydalanuvchi: ${userLabel}`);
     }
     return;
   }
@@ -1097,9 +1115,7 @@ Oxirida albatta eslating: bu AI tahlili, rasmiy tekshiruv o'rnini bosmaydi.`,
     const kind = s.mode === 'lead_consult' ? 'Premium konsultatsiya' : 'Hamkorlik so\'rovi';
     clearPendingState(chatId);
     await sendContent(chatId, t.lead_ok, { reply_markup: backButton(chatId) });
-    if (ADMIN_CHAT_ID) {
-      await bot.sendMessage(ADMIN_CHAT_ID, `📩 ${kind}!\n\nMa'lumot: ${text}\n\n👤 Yuboruvchi: ${userLabel}`);
-    }
+    notifyAdmins(`📩 ${kind}!\n\nMa'lumot: ${text}\n\n👤 Yuboruvchi: ${userLabel}`);
     return;
   }
 
@@ -1114,7 +1130,7 @@ Oxirida albatta eslating: bu AI tahlili, rasmiy tekshiruv o'rnini bosmaydi.`,
   // ---- Saytdan kelgan lid xabari ----
   if (text.startsWith('🆕 Yangi lid')) {
     await bot.sendMessage(chatId, t.lead_ok);
-    if (ADMIN_CHAT_ID) await bot.sendMessage(ADMIN_CHAT_ID, `📩 Yangi lid keldi:\n\n${text}\n\n👤 Yuboruvchi: ${userLabel}`);
+    notifyAdmins(`📩 Yangi lid keldi:\n\n${text}\n\n👤 Yuboruvchi: ${userLabel}`);
     return;
   }
 
