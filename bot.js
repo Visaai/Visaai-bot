@@ -58,6 +58,7 @@ function getUser(chatId) {
     usersDB[key] = {
       name: '', username: '', phone: '', joinedAt: new Date().toISOString(),
       promoCode: 'VIZA' + key.slice(-5), referredBy: null, purchases: [], callNote: '',
+      interestedIn: '', chanceScorePct: null, docChecksCount: 0,
     };
     saveDB();
   }
@@ -70,6 +71,38 @@ function isRegistered(chatId) {
 function findUserByPromoCode(code) {
   const norm = (code || '').trim().toUpperCase();
   return Object.entries(usersDB).find(([, u]) => u.promoCode === norm);
+}
+
+// ---------------------------------------------------------------
+// ADMIN PROFIL KARTOCHKASI — har bir muhim bosqichda (test tugagach,
+// xarid qilganda/qilmaganda) sizga qisqa, tuzilgan xulosa keladi.
+// ---------------------------------------------------------------
+async function sendAdminProfileCard(chatId, event) {
+  if (!ADMIN_CHAT_ID) return;
+  const u = usersDB[String(chatId)];
+  if (!u) return;
+
+  const lastPurchase = u.purchases[u.purchases.length - 1];
+  const purchaseLine = lastPurchase
+    ? (lastPurchase.status === 'confirmed' ? `✅ Sotib oldi — ${lastPurchase.name}` : `⏳ Qiziqdi, lekin hali to'lamadi — ${lastPurchase.name}`)
+    : '❌ Hali hech narsa sotib olmadi';
+
+  const chanceLine = u.chanceScorePct !== null ? `${u.chanceScorePct}%` : "o'tmagan";
+
+  const card =
+`👤 Foydalanuvchi-${chatId}
+📌 Hodisa: ${event}
+
+📱 Telefon: ${u.phone || '—'}
+🌍 Qiziqqan yo'nalish: ${u.interestedIn || 'hali aniqlanmagan'}
+🧠 Viza AI tahlili: ${chanceLine}
+📸 Hujjat tekshiruvi: ${u.docChecksCount} marta
+🎬 Kurs holati: ${purchaseLine}
+🎁 Promo: ${u.referredBy ? `kiritgan (${u.referredBy})` : "kiritmagan"}
+
+☎️ Kimga qo'ng'iroq: /izoh_${chatId} <izoh>`;
+
+  bot.sendMessage(ADMIN_CHAT_ID, card).catch(() => {});
 }
 
 
@@ -504,6 +537,11 @@ function computeChanceResult(chatId) {
   const lang = getLang(chatId);
   const total = Object.values(s.chanceScore).reduce((a, b) => a + b, 0);
   const pct = Math.round((total / CHANCE_MAX_SCORE) * 100);
+
+  const u = getUser(chatId);
+  u.chanceScorePct = pct;
+  saveDB();
+
   let verdict;
   if (lang === 'ru') {
     verdict = pct >= 80 ? 'Профиль выглядит сильным' : pct >= 60 ? 'Профиль хороший, есть отдельные риски' : pct >= 40 ? 'Профиль средний' : 'Профиль нужно серьёзно усилить';
@@ -559,10 +597,7 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
     `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${t.purchase_pay}\n\n💳 ${t.card_label}: XXXX XXXX XXXX XXXX\n👤 ${t.fullname_label}`,
     backButton(chatId)
   );
-  if (ADMIN_CHAT_ID) {
-    const promoNote = u.referredBy ? `\n🎁 Promo kod: ${u.referredBy} (chegirma qo'llansin)` : '';
-    await bot.sendMessage(ADMIN_CHAT_ID, `💰 Yangi kurs xaridi!\n\nKurs: ${name} (${course.price})\nXaridor: ${userLabel}\n📱 ${u.phone || 'ro\'yxatdan o\'tmagan'}${promoNote}\n\nTasdiqlash: /tasdiqla ${chatId}`);
-  }
+  sendAdminProfileCard(chatId, `Kurs sotib olishni boshladi: ${name} (${course.price})`);
 }
 
 async function handleStartPayload(chatId, payload, fromUser) {
@@ -691,6 +726,7 @@ bot.on('callback_query', async (query) => {
     }
     const resultText = computeChanceResult(chatId);
     clearPendingState(chatId);
+    sendAdminProfileCard(chatId, "Viza imkoniyati testini tugatdi");
     return renderScreen(chatId, resultText, backButton(chatId));
   }
 
@@ -722,18 +758,27 @@ bot.on('callback_query', async (query) => {
   if (data.startsWith('chk_travel_')) {
     const c = COUNTRIES.find(x => x.key === data.replace('chk_travel_', ''));
     if (!c) return;
+    const u = getUser(chatId);
+    u.interestedIn = `${c.name} (sayohat viza)`;
+    saveDB();
     const list = c.items.map((it, i) => `${i + 1}. ${it[0]} — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
     return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
   if (data.startsWith('chk_work_')) {
     const c = WORK_COUNTRIES.find(x => x.key === data.replace('chk_work_', ''));
     if (!c) return;
+    const u = getUser(chatId);
+    u.interestedIn = `${c.name} (ishchi viza)`;
+    saveDB();
     const list = WORK_CHECKLIST.map((it, i) => `${i + 1}. ${it[0]} — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
     return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
   if (data.startsWith('chk_student_')) {
     const c = STUDENT_COUNTRIES.find(x => x.key === data.replace('chk_student_', ''));
     if (!c) return;
+    const u = getUser(chatId);
+    u.interestedIn = `${c.name} (talaba vizasi)`;
+    saveDB();
     const list = STUDENT_CHECKLIST.map((it, i) => `${i + 1}. ${it[0]} — ${lang === 'ru' ? it[2] : it[1]}`).join('\n');
     return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
@@ -787,9 +832,9 @@ bot.on('callback_query', async (query) => {
     saveDB();
 
     await renderScreen(chatId, `"${name}" — ${tour.price} 🧳\n\n${t.tour_request_ok}`, backButton(chatId));
-    if (ADMIN_CHAT_ID) {
-      await bot.sendMessage(ADMIN_CHAT_ID, `🧳 Yangi tur so'rovi!\n\nTur: ${name} (${tour.price})\nMijoz: ${userLabel}\n📱 ${u.phone || 'ro\'yxatdan o\'tmagan'}`);
-    }
+    u.interestedIn = `${name} (tur paket)`;
+    saveDB();
+    sendAdminProfileCard(chatId, `Tur paketi so'radi: ${name} (${tour.price})`);
     return;
   }
 
@@ -857,6 +902,7 @@ bot.onText(/\/tasdiqla (.+)/, async (msg, match) => {
   }
 
   await bot.sendMessage(chatId, `Yuborildi: ${purchase.userLabel}`);
+  sendAdminProfileCard(targetId, `To'lov TASDIQLANDI: ${purchase.name} ✅`);
   pendingPurchases.delete(targetId);
 });
 
@@ -1029,6 +1075,11 @@ Oxirida albatta eslating: bu AI tahlili, rasmiy tekshiruv o'rnini bosmaydi.`,
       const feedback = response.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
       await bot.deleteMessage(chatId, analyzing.message_id).catch(() => {});
       await sendContent(chatId, `📄 ${feedback}`, { reply_markup: backButton(chatId) });
+
+      const u = getUser(chatId);
+      u.docChecksCount += 1;
+      saveDB();
+      sendAdminProfileCard(chatId, "Hujjatini AI orqali tekshirdi");
     } catch (err) {
       console.error('Hujjat tahlili xatosi:', err);
       await bot.deleteMessage(chatId, analyzing.message_id).catch(() => {});
