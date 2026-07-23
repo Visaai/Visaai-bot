@@ -374,8 +374,28 @@ const TOUR_PACKAGES = {
 // ---------------------------------------------------------------
 // AI SYSTEM PROMPT — kurslarni faol targ'ib qiluvchi
 // ---------------------------------------------------------------
-function buildSystemPrompt(lang) {
+function buildSystemPrompt(lang, chatId) {
   const langName = lang === 'ru' ? 'ruscha (rus tilida)' : "o'zbekcha";
+  const u = usersDB[String(chatId)];
+
+  let historyBlock = '';
+  if (u) {
+    const parts = [];
+    if (u.interestedIn) parts.push(`Qiziqqan yo'nalishi: ${u.interestedIn}`);
+    if (u.chanceScorePct !== null && u.chanceScorePct !== undefined) parts.push(`Viza imkoniyati testi natijasi: ${u.chanceScorePct}%`);
+    if (u.docHistory && u.docHistory.length) {
+      const docsList = u.docHistory.map(d => d.type).join(', ');
+      parts.push(`Ilgari yuborgan hujjatlari: ${docsList}`);
+    }
+    if (u.purchases && u.purchases.length) {
+      const confirmed = u.purchases.filter(p => p.status === 'confirmed').map(p => p.name);
+      if (confirmed.length) parts.push(`Sotib olgan kurslari: ${confirmed.join(', ')}`);
+    }
+    if (parts.length) {
+      historyBlock = `\n\nMIJOZ HAQIDA MA'LUMOT (avvalgi muloqotdan, shuni hisobga olib javob bering, lekin qayta so'ramang):\n- ${parts.join('\n- ')}\n`;
+    }
+  }
+
   return `Siz VizaAI — viza va sayohat tayyorgarligi bo'yicha Telegram yordamchisiz. ${langName} tilda, qisqa (3-6 gap) va aniq javob bering.
 
 VIZAAI HAQIDA:
@@ -386,7 +406,7 @@ VIZAAI HAQIDA:
   yoki BARCHA KURSLAR PAKETI — 999 000 so'm (1 700 000 o'rniga, ~40% chegirma).
 - Tur paketlar: Turkiya ($599), Vyetnam ($699), Yevropa ($1799), Yaponiya ($1250).
 - Premium konsultatsiya — hamkor mutaxassis bilan shaxsiy maslahat.
-
+${historyBlock}
 MUHIM QOIDA — KURSLARNI REKLAMA QILISH:
 Deyarli har bir javobingiz oxirida, mavzuga mos keladigan aniq video kursni **qisqa va tabiiy** tarzda eslatib o'ting.
 Masalan: agar Shengen haqida so'ralsa — "Shengen bo'yicha to'liq video kursimiz bor (199 000 so'm) — barcha bosqichlarni bosqichma-bosqich ko'rsatadi."
@@ -958,9 +978,9 @@ bot.on('callback_query', async (query) => {
   if (data === 'promo_show') {
     const u = getUser(chatId);
     const msgText = lang === 'ru'
-      ? `🎁 Ваш промокод: ${u.promoCode}\n\nПоделитесь им с другом — вы оба получите скидку при оплате.`
-      : `🎁 Sizning promo kodingiz: ${u.promoCode}\n\nDo'stingiz bilan bo'lishing — ikkalangiz ham to'lovda chegirma olasiz.`;
-    return renderScreen(chatId, msgText, backButton(chatId));
+      ? `🎁 Ваш промокод (нажмите, чтобы скопировать):\n\`${u.promoCode}\`\n\nПоделитесь им с другом — вы оба получите скидку при оплате.`
+      : `🎁 Sizning promo kodingiz (bosib nusxalang):\n\`${u.promoCode}\`\n\nDo'stingiz bilan bo'lishing — ikkalangiz ham to'lovda chegirma olasiz.`;
+    return renderScreen(chatId, msgText, backButton(chatId), { parse_mode: 'Markdown' });
   }
   if (data === 'promo_enter') {
     getState(chatId).mode = 'promo_enter';
@@ -1123,9 +1143,9 @@ bot.on('message', async (msg) => {
     clearPendingState(chatId);
 
     const welcomeBack = lang === 'ru'
-      ? `Спасибо! Вы зарегистрированы ✅\n\n🎁 Ваш личный промокод: ${u.promoCode}\nПоделитесь им с другом — вы оба получите скидку.`
-      : `Rahmat! Ro'yxatdan o'tdingiz ✅\n\n🎁 Sizning shaxsiy promo kodingiz: ${u.promoCode}\nDo'stingiz bilan bo'lishing — ikkalangiz ham chegirma olasiz.`;
-    await bot.sendMessage(chatId, welcomeBack, { reply_markup: { remove_keyboard: true } });
+      ? `Спасибо! Вы зарегистрированы ✅\n\n🎁 Ваш промокод (нажмите, чтобы скопировать):\n\`${u.promoCode}\`\n\nПоделитесь им с другом — вы оба получите скидку.`
+      : `Rahmat! Ro'yxatdan o'tdingiz ✅\n\n🎁 Sizning promo kodingiz (bosib nusxalang):\n\`${u.promoCode}\`\n\nDo'stingiz bilan bo'lishing — ikkalangiz ham chegirma olasiz.`;
+    await bot.sendMessage(chatId, welcomeBack, { reply_markup: { remove_keyboard: true }, parse_mode: 'Markdown' });
 
     notifyAdmins(`🆕 Yangi ro'yxatdan o'tish!\n\n👤 ${userLabel}\n📱 ${phone}`);
 
@@ -1156,53 +1176,71 @@ bot.on('message', async (msg) => {
     return sendContent(chatId, msgText, { reply_markup: backButton(chatId) });
   }
 
-  // ---- Hujjat fotosi — CHUQUR AI TAHLILI (Claude vision) ----
+  // ---- Hujjat fotosi — CHUQUR AI TAHLILI (Claude vision, aniq ma'lumotlar bilan) ----
   if (msg.photo && s.mode === 'doc') {
     clearPendingState(chatId);
     const analyzing = await bot.sendMessage(chatId, t.doc_analyzing);
+    let stage = 'boshlanish';
     try {
+      stage = 'faylni yuklab olish';
       const fileId = msg.photo[msg.photo.length - 1].file_id;
       const fileLink = await bot.getFileLink(fileId);
       const imgResp = await fetch(fileLink);
+      if (!imgResp.ok) throw new Error(`Fayl yuklanmadi (HTTP ${imgResp.status})`);
       const arrayBuf = await imgResp.arrayBuffer();
+      const sizeMb = arrayBuf.byteLength / (1024 * 1024);
+      if (sizeMb > 4.5) throw new Error(`Rasm hajmi juda katta (${sizeMb.toFixed(1)}MB) — 4.5MB dan kichikroq rasm yuboring`);
       const base64 = Buffer.from(arrayBuf).toString('base64');
       const mediaType = imgResp.headers.get('content-type') || 'image/jpeg';
 
+      stage = 'AI orqali tahlil qilish';
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 700,
-        system: `Siz tajribali hujjat tekshiruvchi AI'siz. ${lang === 'ru' ? 'Отвечайте на русском.' : "O'zbek tilida javob bering."}
-Rasmni diqqat bilan ko'rib, quyidagi tuzilishda tahlil bering:
-1) HUJJAT TURI — bu qanday hujjat ekanini aniqlang (pasport, bank hisob ko'chirmasi, anketa, bron, sug'urta va h.k.)
-2) TEXNIK SIFAT — aniqlik, yorug'lik, kesilmaganlik, burchaklar to'liq ko'rinishi
-3) MUAMMOLAR — ko'zga tashlangan aniq kamchiliklar (masalan xira, qirqilgan, muddati o'tgan ko'rinadi, imzo yo'q va h.k.) — agar muammo bo'lmasa aniq ayting
-4) TAVSIYA — nima qilish kerakligi bo'yicha 1-2 aniq qadam
-Har bir band uchun 1-2 gap, umumiy 6-8 gapdan oshmasin.
-Shaxsiy ma'lumotlarni (ism, raqam, sana) hech qachon qaytarmang, faqat ularning MAVJUDLIGINI/SIFATINI baholang.
-Oxirida albatta eslating: bu AI tahlili, rasmiy tekshiruv o'rnini bosmaydi.`,
+        max_tokens: 800,
+        system: `Siz hujjat tekshiruvchi va undan ma'lumot o'qib beruvchi AI'siz. ${lang === 'ru' ? 'Отвечайте на русском.' : "O'zbek tilida javob bering."}
+Rasmni diqqat bilan o'qib, ANIQ shu tuzilishda javob bering (sarlavhalarni saqlang):
+
+📄 Hujjat turi: (pasport, ID karta, bank hujjati, anketa va h.k.)
+👤 F.I.Sh: (agar ko'rinsa)
+📅 Tug'ilgan sana:
+🔢 Hujjat raqami / PINFL:
+📆 Amal qilish muddati:
+✅ Sifat va muammolar: (aniqlik, yorug'lik, kesilmaganlik, muddati o'tganmi va h.k. — 1-2 gap)
+💡 Tavsiya: (1 gap)
+
+QOIDA: Agar biror maydonni rasmda aniq o'qiy olmasangiz, "aniq emas / ko'rinmayapti" deb yozing — hech qachon o'zingiz to'qib yozmang.
+Oxiriga albatta shuni qo'shing: "⚠️ Bu AI orqali o'qilgan ma'lumot, xatolik bo'lishi mumkin — muhim raqamlarni (PINFL, hujjat raqami) qo'lda solishtirib tekshiring. Bu rasmiy tekshiruv emas."`,
         messages: [{
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-            { type: 'text', text: lang === 'ru' ? 'Проанализируйте этот документ подробно.' : 'Bu hujjatni batafsil tahlil qilib bering.' },
+            { type: 'text', text: lang === 'ru' ? 'Прочитайте и проанализируйте этот документ.' : "Bu hujjatni o'qib, tahlil qilib bering." },
           ],
         }],
       });
 
+      stage = "javobni qayta ishlash";
       const feedback = response.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
+      if (!feedback) throw new Error('AI bo\'sh javob qaytardi');
+
       await bot.deleteMessage(chatId, analyzing.message_id).catch(() => {});
       await sendContent(chatId, `📄 ${feedback}`, { reply_markup: backButton(chatId) });
 
       const u = getUser(chatId);
       u.docChecksCount += 1;
+      // Qisqa xotira — keyingi suhbatlarda AI shuni hisobga oladi
+      const docTypeMatch = feedback.match(/Hujjat turi:\s*([^\n]+)/i);
+      u.docHistory = u.docHistory || [];
+      u.docHistory.push({ type: (docTypeMatch ? docTypeMatch[1].trim() : "noma'lum hujjat").slice(0, 60), date: new Date().toISOString() });
+      u.docHistory = u.docHistory.slice(-10); // faqat oxirgi 10 tasi saqlanadi
       saveDB();
       sendAdminProfileCard(chatId, "Hujjatini AI orqali tekshirdi");
     } catch (err) {
-      console.error('Hujjat tahlili xatosi:', err);
+      console.error(`Hujjat tahlili xatosi (bosqich: ${stage}):`, err);
       await bot.deleteMessage(chatId, analyzing.message_id).catch(() => {});
       await sendContent(chatId, t.ai_error, { reply_markup: backButton(chatId) });
-      // Admin uchun aniq xato matni — muammoni tezroq topish uchun
-      notifyAdmins(`⚠️ Hujjat tahlilida xato:\n${err.message || err}\n\nFoydalanuvchi: ${userLabel}`);
+      // Admin uchun ANIQ qaysi bosqichda va nima sababdan xato bo'lganini ko'rsatamiz
+      notifyAdmins(`🔴 Hujjat tahlilida xato!\n\nBosqich: ${stage}\nXato: ${err.message || err}\n\nFoydalanuvchi: ${userLabel}`);
     }
     return;
   }
@@ -1241,7 +1279,7 @@ Oxirida albatta eslating: bu AI tahlili, rasmiy tekshiruv o'rnini bosmaydi.`,
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 500,
-        system: buildSystemPrompt(lang),
+        system: buildSystemPrompt(lang, chatId),
         messages: history,
       });
 
