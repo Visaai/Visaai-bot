@@ -1211,20 +1211,34 @@ bot.on('message', async (msg) => {
     return sendContent(chatId, msgText, { reply_markup: backButton(chatId) });
   }
 
-  // ---- Hujjat fotosi — CHUQUR AI TAHLILI (Claude vision, aniq ma'lumotlar bilan) ----
-  if (msg.photo && s.mode === 'doc') {
+
+  // Rasm ikki xil kelishi mumkin: siqilgan "Photo" (msg.photo) yoki original
+  // sifatli "Fayl/Document" (msg.document) — ikkalasini ham qo'llab-quvvatlaymiz.
+  const isImageDocument = msg.document && msg.document.mime_type && msg.document.mime_type.startsWith('image/');
+
+  // ---- Rasm bo'lmagan fayl (masalan PDF) — aniq ko'rsatma beramiz ----
+  if (msg.document && !isImageDocument && s.mode === 'doc') {
+    clearPendingState(chatId);
+    const hint = lang === 'ru'
+      ? `Этот файл (${msg.document.mime_type || 'неизвестный формат'}) я пока не могу прочитать. Отправьте, пожалуйста, документ как изображение (JPG, PNG) — например, сделайте скриншот или экспортируйте страницу PDF как фото.`
+      : `Bu fayl turini (${msg.document.mime_type || "noma'lum format"}) hozircha o'qiy olmayman. Iltimos, hujjatni rasm (JPG, PNG) sifatida yuboring — masalan, skrinshot oling yoki PDF sahifasini rasm sifatida eksport qiling.`;
+    return sendContent(chatId, hint, { reply_markup: backButton(chatId) });
+  }
+
+  // ---- Hujjat fotosi/fayli — CHUQUR AI TAHLILI (Claude vision, aniq ma'lumotlar bilan) ----
+  if ((msg.photo || isImageDocument) && s.mode === 'doc') {
     clearPendingState(chatId);
     const analyzing = await bot.sendMessage(chatId, t.doc_analyzing);
     let stage = 'boshlanish';
     try {
       stage = 'faylni yuklab olish';
-      const fileId = msg.photo[msg.photo.length - 1].file_id;
+      const fileId = msg.photo ? msg.photo[msg.photo.length - 1].file_id : msg.document.file_id;
       const fileLink = await bot.getFileLink(fileId);
       const { buffer, contentType } = await downloadFileAsBuffer(fileLink);
       const sizeMb = buffer.length / (1024 * 1024);
       if (sizeMb > 4.5) throw new Error(`Rasm hajmi juda katta (${sizeMb.toFixed(1)}MB) — 4.5MB dan kichikroq rasm yuboring`);
       const base64 = buffer.toString('base64');
-      const mediaType = contentType;
+      const mediaType = (msg.document && msg.document.mime_type) || contentType;
 
       stage = 'AI orqali tahlil qilish';
       const response = await anthropic.messages.create({
@@ -1287,8 +1301,8 @@ Oxiriga albatta shuni qo'shing: "⚠️ Bu AI orqali o'qilgan ma'lumot, xatolik 
     return;
   }
 
-  // ---- Rasm kelgan, lekin "Hujjatni AI tekshirish" bosilmagan — bot jim qolmasin ----
-  if (msg.photo && s.mode !== 'doc') {
+  // ---- Rasm/fayl kelgan, lekin "Hujjatni AI tekshirish" bosilmagan — bot jim qolmasin ----
+  if ((msg.photo || isImageDocument) && s.mode !== 'doc') {
     const hint = lang === 'ru'
       ? 'Я вижу, что вы отправили фото. Чтобы я его проанализировал, сначала нажмите «📸 Проверка документа AI» в меню.'
       : "Rasm yuborganingizni ko'ryapman. Uni tahlil qilishim uchun avval menyudan \"📸 Hujjatni AI tekshirish\" tugmasini bosing.";
