@@ -658,6 +658,28 @@ function recommendCourse(chatId) {
   return 'kurs_barchasi';
 }
 
+// AI javobida qaysi kurs tilga olinganini aniqlaydi — topilsa, shu xabarga
+// to'g'ridan-to'g'ri "Sotib olish" tugmasi qo'shiladi.
+function detectMentionedCourse(replyText) {
+  const lower = replyText.toLowerCase();
+  const keywordMap = [
+    [['shengen', 'шенген'], 'kurs_shengen'],
+    [['yaponiya', 'япони'], 'kurs_yaponiya'],
+    [['aqsh', 'сша', 'b1/b2', 'b1-b2'], 'kurs_aqsh'],
+    [['buyuk britaniya', 'великобритан'], 'kurs_uk'],
+    [['talaba viza', 'студенческ'], 'kurs_talaba'],
+    [['ishchi viza', 'рабоч'], 'kurs_ishchi'],
+    [['hong kong', 'гонконг'], 'kurs_hongkong'],
+    [['avstraliya', 'австрал'], 'kurs_avstraliya'],
+    [['kanada', 'канад'], 'kurs_kanada'],
+    [['barcha kurslar', 'barcha video darslik', 'пакет всех', '999'], 'kurs_barchasi'],
+  ];
+  for (const [keywords, key] of keywordMap) {
+    if (keywords.some(kw => lower.includes(kw))) return key;
+  }
+  return null;
+}
+
 function computeChanceResult(chatId) {
   const s = getState(chatId);
   const lang = getLang(chatId);
@@ -838,6 +860,12 @@ bot.on('callback_query', async (query) => {
 
   try {
 
+  // Til tanlash ro'yxatdan o'tishdan keyin bo'lsa — buni saqlab qolamiz,
+  // chunki pastdagi clearPendingState buni tozalab yuboradi
+  const stateBefore = getState(chatId);
+  const wasPostRegLang = stateBefore.mode === 'post_reg_lang';
+  const savedPendingPayload = stateBefore.pendingPayload;
+
   if (!data.startsWith('chance_ans_')) clearPendingState(chatId);
 
   if (data === 'menu') return sendMainMenu(chatId);
@@ -849,7 +877,20 @@ bot.on('callback_query', async (query) => {
     ]] });
   }
   if (data === 'setlang_uz' || data === 'setlang_ru') {
-    userLang.set(chatId, data === 'setlang_uz' ? 'uz' : 'ru');
+    const newLang = data === 'setlang_uz' ? 'uz' : 'ru';
+    userLang.set(chatId, newLang);
+
+    // Agar bu ro'yxatdan o'tishdan keyingi til tanlash bo'lsa —
+    // xush kelibsiz + promo kod xabarini ko'rsatib, keyin davom etamiz
+    if (wasPostRegLang) {
+      const u = getUser(chatId);
+      const tt = T[newLang];
+      const welcomeBack = newLang === 'ru'
+        ? `Вы зарегистрированы ✅\n\n🎁 Ваш промокод (нажмите, чтобы скопировать):\n\`${u.promoCode}\`\n\nПоделитесь им с другом — вы оба получите скидку.`
+        : `Ro'yxatdan o'tdingiz ✅\n\n🎁 Sizning promo kodingiz (bosib nusxalang):\n\`${u.promoCode}\`\n\nDo'stingiz bilan bo'lishing — ikkalangiz ham chegirma olasiz.`;
+      await bot.sendMessage(chatId, welcomeBack, { parse_mode: 'Markdown' });
+      return handleStartPayload(chatId, savedPendingPayload, query.from);
+    }
     return sendMainMenu(chatId);
   }
 
@@ -1169,13 +1210,20 @@ bot.on('message', async (msg) => {
     u.username = msg.from.username || '';
     saveDB();
 
-    const pendingPayload = s.pendingPayload;
-    clearPendingState(chatId);
+    // Endi tilni so'raymiz — pendingPayload saqlanib qoladi, til tanlangach davom etadi
+    s.mode = 'post_reg_lang';
 
-    const welcomeBack = lang === 'ru'
-      ? `Спасибо! Вы зарегистрированы ✅\n\n🎁 Ваш промокод (нажмите, чтобы скопировать):\n\`${u.promoCode}\`\n\nПоделитесь им с другом — вы оба получите скидку.`
-      : `Rahmat! Ro'yxatdan o'tdingiz ✅\n\n🎁 Sizning promo kodingiz (bosib nusxalang):\n\`${u.promoCode}\`\n\nDo'stingiz bilan bo'lishing — ikkalangiz ham chegirma olasiz.`;
-    await bot.sendMessage(chatId, welcomeBack, { reply_markup: { remove_keyboard: true }, parse_mode: 'Markdown' });
+    await bot.sendMessage(chatId, "Rahmat! ✅ Tilni tanlang / Спасибо! Выберите язык:", {
+      reply_markup: {
+        remove_keyboard: true,
+      },
+    });
+    await bot.sendMessage(chatId, "🇺🇿 / 🇷🇺", {
+      reply_markup: { inline_keyboard: [[
+        { text: "🇺🇿 O'zbekcha", callback_data: 'setlang_uz' },
+        { text: '🇷🇺 Русский', callback_data: 'setlang_ru' },
+      ]] },
+    });
 
     notifyAdmins(`🆕 Yangi mijoz kirdi!\n\n👤 ${userLabel}\n📱 ${phone}\n\n⏳ 2 daqiqadan so'ng uning bot ichidagi faoliyati haqida qo'shimcha xabar keladi...`);
 
@@ -1184,7 +1232,7 @@ bot.on('message', async (msg) => {
       sendAdminProfileCard(chatId, "Kirganidan 2 daqiqa o'tdi — bot ichidagi faoliyati");
     }, 2 * 60 * 1000);
 
-    return handleStartPayload(chatId, pendingPayload, msg.from);
+    return;
   }
 
   // ---- PROMO KOD KIRITISH ----
@@ -1214,11 +1262,14 @@ bot.on('message', async (msg) => {
 
   // Rasm ikki xil kelishi mumkin: siqilgan "Photo" (msg.photo) yoki original
   // sifatli "Fayl/Document" (msg.document) — ikkalasini ham qo'llab-quvvatlaymiz.
+  // MUHIM: bu endi "holatsiz" (stateless) ishlaydi — foydalanuvchi oldin tugma
+  // bosishi shart emas, istalgan payt rasm/hujjat yuborsa, avtomatik tahlil qilinadi.
+  // (Avval "s.mode === 'doc'" talab qilinardi, lekin server qayta ishga tushganda
+  // bu holat yo'qolib, foydalanuvchiga noto'g'ri xabar ko'rsatilishi mumkin edi.)
   const isImageDocument = msg.document && msg.document.mime_type && msg.document.mime_type.startsWith('image/');
 
   // ---- Rasm bo'lmagan fayl (masalan PDF) — aniq ko'rsatma beramiz ----
-  if (msg.document && !isImageDocument && s.mode === 'doc') {
-    clearPendingState(chatId);
+  if (msg.document && !isImageDocument && s.mode !== 'registering' && s.mode !== 'lead_consult' && s.mode !== 'lead_partner') {
     const hint = lang === 'ru'
       ? `Этот файл (${msg.document.mime_type || 'неизвестный формат'}) я пока не могу прочитать. Отправьте, пожалуйста, документ как изображение (JPG, PNG) — например, сделайте скриншот или экспортируйте страницу PDF как фото.`
       : `Bu fayl turini (${msg.document.mime_type || "noma'lum format"}) hozircha o'qiy olmayman. Iltimos, hujjatni rasm (JPG, PNG) sifatida yuboring — masalan, skrinshot oling yoki PDF sahifasini rasm sifatida eksport qiling.`;
@@ -1226,7 +1277,7 @@ bot.on('message', async (msg) => {
   }
 
   // ---- Hujjat fotosi/fayli — CHUQUR AI TAHLILI (Claude vision, aniq ma'lumotlar bilan) ----
-  if ((msg.photo || isImageDocument) && s.mode === 'doc') {
+  if ((msg.photo || isImageDocument) && s.mode !== 'registering' && s.mode !== 'lead_consult' && s.mode !== 'lead_partner') {
     clearPendingState(chatId);
     const analyzing = await bot.sendMessage(chatId, t.doc_analyzing);
     let stage = 'boshlanish';
@@ -1301,14 +1352,6 @@ Oxiriga albatta shuni qo'shing: "⚠️ Bu AI orqali o'qilgan ma'lumot, xatolik 
     return;
   }
 
-  // ---- Rasm/fayl kelgan, lekin "Hujjatni AI tekshirish" bosilmagan — bot jim qolmasin ----
-  if ((msg.photo || isImageDocument) && s.mode !== 'doc') {
-    const hint = lang === 'ru'
-      ? 'Я вижу, что вы отправили фото. Чтобы я его проанализировал, сначала нажмите «📸 Проверка документа AI» в меню.'
-      : "Rasm yuborganingizni ko'ryapman. Uni tahlil qilishim uchun avval menyudan \"📸 Hujjatni AI tekshirish\" tugmasini bosing.";
-    return bot.sendMessage(chatId, hint, { reply_markup: backButton(chatId) });
-  }
-
   // ---- Saytdan kelgan lid xabari ----
   if (text.startsWith('🆕 Yangi lid')) {
     await bot.sendMessage(chatId, t.lead_ok);
@@ -1334,7 +1377,19 @@ Oxiriga albatta shuni qo'shing: "⚠️ Bu AI orqali o'qilgan ma'lumot, xatolik 
       history.push({ role: 'assistant', content: reply });
       conversations.set(chatId, history.slice(-10));
 
-      await sendContent(chatId, reply, { reply_markup: backButton(chatId) });
+      // Agar AI javobida biror kurs tilga olingan bo'lsa — "Sotib olish"
+      // tugmasini to'g'ridan-to'g'ri shu xabarga qo'shamiz
+      const recommendedKey = detectMentionedCourse(reply);
+      const keyboard = { inline_keyboard: [] };
+      if (recommendedKey) {
+        const course = COURSE_CHANNELS[recommendedKey];
+        const courseName = lang === 'ru' ? course.nameRu : course.name;
+        const buyLabel = lang === 'ru' ? `🎬 Купить: ${courseName} — ${course.price}` : `🎬 Sotib olish: ${courseName} — ${course.price}`;
+        keyboard.inline_keyboard.push([{ text: buyLabel, callback_data: `buy_course_${recommendedKey}` }]);
+      }
+      keyboard.inline_keyboard.push([{ text: t.to_menu, callback_data: 'menu' }]);
+
+      await sendContent(chatId, reply, { reply_markup: keyboard });
     } catch (err) {
       console.error('AI xatosi:', err);
       await sendContent(chatId, t.ai_error, { reply_markup: backButton(chatId) });
