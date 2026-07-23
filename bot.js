@@ -11,6 +11,9 @@
 // Ishga tushirish: node bot.js
 
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const fetch = require('node-fetch');
 const TelegramBot = require('node-telegram-bot-api');
 const Anthropic = require('@anthropic-ai/sdk');
 
@@ -20,6 +23,55 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
 const SITE_URL = 'https://vizaai.uz';
+
+// ---------------------------------------------------------------
+// FOYDALANUVCHILAR BAZASI — JSON fayl orqali saqlanadi
+// ⚠️ MUHIM: Render'ning bepul/Starter tarifida disk vaqtinchalik —
+// har safar QAYTA DEPLOY qilinganda (yangi kod yuklanganda) bu fayl
+// TOZALANISHI MUMKIN. Bot qayta ishga tushishi (restart) bilan
+// deploy qilish (redeploy) FARQLI narsa: oddiy restart'da fayl saqlanadi,
+// lekin GitHub'dan yangi kod tortilganda (redeploy) — yo'qolishi mumkin.
+// Uzoq muddatda haqiqiy ma'lumotlar bazasi (masalan MongoDB Atlas —
+// bepul tarifi bor) ga o'tish tavsiya etiladi.
+// ---------------------------------------------------------------
+const DB_FILE = path.join(__dirname, 'users_data.json');
+
+function loadDB() {
+  try {
+    return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+  } catch (e) {
+    return {};
+  }
+}
+function saveDB() {
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(usersDB, null, 2));
+  } catch (e) {
+    console.error("Baza saqlashda xato:", e.message);
+  }
+}
+let usersDB = loadDB(); // { [chatId]: { name, username, phone, joinedAt, promoCode, referredBy, purchases:[], callNote } }
+
+function getUser(chatId) {
+  const key = String(chatId);
+  if (!usersDB[key]) {
+    usersDB[key] = {
+      name: '', username: '', phone: '', joinedAt: new Date().toISOString(),
+      promoCode: 'VIZA' + key.slice(-5), referredBy: null, purchases: [], callNote: '',
+    };
+    saveDB();
+  }
+  return usersDB[key];
+}
+function isRegistered(chatId) {
+  const u = usersDB[String(chatId)];
+  return !!(u && u.phone);
+}
+function findUserByPromoCode(code) {
+  const norm = (code || '').trim().toUpperCase();
+  return Object.entries(usersDB).find(([, u]) => u.promoCode === norm);
+}
+
 
 // ---------------------------------------------------------------
 // TIL (uz / ru)
@@ -290,14 +342,16 @@ QOIDALAR:
 // ---------------------------------------------------------------
 // FOYDALANUVCHI HOLATI
 // ---------------------------------------------------------------
-const userState = new Map(); // chatId -> { mode, chanceStep, chanceScore, screenMsgId }
+const userState = new Map(); // chatId -> { mode, chanceStep, chanceScore, screenMsgId, pendingPayload }
 function getState(chatId) {
-  if (!userState.has(chatId)) userState.set(chatId, { mode: 'idle', chanceStep: 0, chanceScore: {}, screenMsgId: null });
+  if (!userState.has(chatId)) userState.set(chatId, { mode: 'idle', chanceStep: 0, chanceScore: {}, screenMsgId: null, pendingPayload: null });
   return userState.get(chatId);
 }
 function clearPendingState(chatId) {
   const s = getState(chatId);
   s.mode = 'idle'; s.chanceStep = 0; s.chanceScore = {};
+  // pendingPayload ataylab tozalanmaydi — registratsiyadan keyin ishlatiladi,
+  // handleStartPayload chaqirilgach qo'lda tozalanadi (kerak bo'lsa)
 }
 
 const conversations = new Map();
@@ -413,6 +467,26 @@ const CHANCE_QUESTIONS = [
       {uz:"Bo'lgan, sababi bartaraf etilgan",ru:"Был, причина устранена",points:6},
       {uz:"Bo'lgan, hali ham dolzarb",ru:"Был, причина ещё актуальна",points:0},
     ]},
+  // --- Qo'shimcha chuqurlik ---
+  { key:'language', q:{uz:"Chet tilini bilish darajangiz?", ru:"Уровень владения иностранным языком?"},
+    options:[
+      {uz:"B1 va undan yuqori",ru:"B1 и выше",points:15},
+      {uz:"A2",ru:"A2",points:9},
+      {uz:"A1 yoki bilmayman",ru:"A1 или не знаю",points:3},
+    ]},
+  { key:'jobLevel', q:{uz:"Lavozimingiz qanday?", ru:"Какая у вас должность?"},
+    options:[
+      {uz:"Rahbar/yuqori lavozim",ru:"Руководитель/высокая должность",points:15},
+      {uz:"O'rta bo'g'in menejer",ru:"Менеджер среднего звена",points:11},
+      {uz:"Oddiy xodim",ru:"Рядовой сотрудник",points:7},
+      {uz:"Ishim yo'q",ru:"Не работаю",points:0},
+    ]},
+  { key:'addressStability', q:{uz:"Necha yildan beri hozirgi manzilda yashaysiz?", ru:"Сколько лет вы живёте по текущему адресу?"},
+    options:[
+      {uz:"3 yildan ko'p",ru:"Более 3 лет",points:10},
+      {uz:"1–3 yil",ru:"1–3 года",points:6},
+      {uz:"1 yildan kam",ru:"Менее 1 года",points:2},
+    ]},
 ];
 const CHANCE_MAX_SCORE = CHANCE_QUESTIONS.reduce((sum, q) => sum + Math.max(...q.options.map(o => o.points)), 0);
 
@@ -477,26 +551,26 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
   const userLabel = `${fromUser.first_name || ''} (@${fromUser.username || 'username yo\'q'}, ID: ${chatId})`;
   pendingPurchases.set(String(chatId), { kind: 'course', key, name, userLabel });
 
+  const u = getUser(chatId);
+  u.purchases.push({ key, name, price: course.price, status: 'pending', requestedAt: new Date().toISOString() });
+  saveDB();
+
   await renderScreen(chatId,
     `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${t.purchase_pay}\n\n💳 ${t.card_label}: XXXX XXXX XXXX XXXX\n👤 ${t.fullname_label}`,
     backButton(chatId)
   );
   if (ADMIN_CHAT_ID) {
-    await bot.sendMessage(ADMIN_CHAT_ID, `💰 Saytdan kurs xaridi!\n\nKurs: ${name} (${course.price})\nXaridor: ${userLabel}\n\nTasdiqlash: /tasdiqla ${chatId}`);
+    const promoNote = u.referredBy ? `\n🎁 Promo kod: ${u.referredBy} (chegirma qo'llansin)` : '';
+    await bot.sendMessage(ADMIN_CHAT_ID, `💰 Yangi kurs xaridi!\n\nKurs: ${name} (${course.price})\nXaridor: ${userLabel}\n📱 ${u.phone || 'ro\'yxatdan o\'tmagan'}${promoNote}\n\nTasdiqlash: /tasdiqla ${chatId}`);
   }
 }
 
-bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  const payload = match && match[1] ? match[1].trim() : null;
-  clearPendingState(chatId);
-  getState(chatId).screenMsgId = null;
-
+async function handleStartPayload(chatId, payload, fromUser) {
   if (!payload) return sendMainMenu(chatId);
 
   // Kurs sotib olish — saytdan to'g'ridan-to'g'ri
   if (payload.startsWith('kurs_')) {
-    return triggerCoursePurchase(chatId, payload, msg.from);
+    return triggerCoursePurchase(chatId, payload, fromUser);
   }
 
   // Video darsliklar ro'yxati
@@ -544,6 +618,32 @@ bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
 
   // Noma'lum payload — asosiy menyu
   return sendMainMenu(chatId);
+}
+
+bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const payload = match && match[1] ? match[1].trim() : null;
+  clearPendingState(chatId);
+  getState(chatId).screenMsgId = null;
+
+  // ---- Ro'yxatdan o'tish shart — faqat telefon raqami kifoya ----
+  if (!isRegistered(chatId)) {
+    const s = getState(chatId);
+    s.mode = 'registering';
+    s.pendingPayload = payload; // ro'yxatdan o'tgach, shu joyga yo'naltiriladi
+    const lang = getLang(chatId);
+    const text = lang === 'ru'
+      ? 'Добро пожаловать в VizaAI! 👋\n\nЧтобы продолжить, поделитесь номером телефона (или напишите его вручную) — это займёт 5 секунд.'
+      : "VizaAI'ga xush kelibsiz! 👋\n\nDavom etish uchun telefon raqamingizni yuboring (yoki qo'lda yozing) — bu 5 soniya vaqt oladi.";
+    return bot.sendMessage(chatId, text, {
+      reply_markup: {
+        keyboard: [[{ text: lang === 'ru' ? '📱 Отправить номер' : '📱 Raqamni yuborish', request_contact: true }]],
+        resize_keyboard: true, one_time_keyboard: true,
+      },
+    });
+  }
+
+  return handleStartPayload(chatId, payload, msg.from);
 });
 
 // ---------------------------------------------------------------
@@ -682,9 +782,13 @@ bot.on('callback_query', async (query) => {
     const userLabel = `${query.from.first_name || ''} (@${query.from.username || 'username yo\'q'}, ID: ${chatId})`;
     pendingPurchases.set(String(chatId), { kind: 'tour', key, name, userLabel });
 
+    const u = getUser(chatId);
+    u.purchases.push({ key, name, price: tour.price, status: 'pending', requestedAt: new Date().toISOString() });
+    saveDB();
+
     await renderScreen(chatId, `"${name}" — ${tour.price} 🧳\n\n${t.tour_request_ok}`, backButton(chatId));
     if (ADMIN_CHAT_ID) {
-      await bot.sendMessage(ADMIN_CHAT_ID, `🧳 Yangi tur so'rovi!\n\nTur: ${name} (${tour.price})\nMijoz: ${userLabel}`);
+      await bot.sendMessage(ADMIN_CHAT_ID, `🧳 Yangi tur so'rovi!\n\nTur: ${name} (${tour.price})\nMijoz: ${userLabel}\n📱 ${u.phone || 'ro\'yxatdan o\'tmagan'}`);
     }
     return;
   }
@@ -698,10 +802,30 @@ bot.on('callback_query', async (query) => {
   // ---- Boshqa imkoniyatlar ----
   if (data === 'other') {
     return renderScreen(chatId, t.other_head, { inline_keyboard: [
-      [{ text: t.ref_program, url: `${SITE_URL}#cta` }],
-      [{ text: t.partner_program, url: `${SITE_URL}#cta` }],
+      [{ text: lang === 'ru' ? '🎁 Мой промокод' : '🎁 Mening promo kodim', callback_data: 'promo_show' }],
+      [{ text: lang === 'ru' ? '✅ Ввести промокод' : '✅ Promo kod kiritish', callback_data: 'promo_enter' }],
+      [{ text: t.partner_program, callback_data: 'lead_partner_start' }],
       [{ text: t.to_menu, callback_data: 'menu' }],
     ] });
+  }
+  if (data === 'promo_show') {
+    const u = getUser(chatId);
+    const msgText = lang === 'ru'
+      ? `🎁 Ваш промокод: ${u.promoCode}\n\nПоделитесь им с другом — вы оба получите скидку при оплате.`
+      : `🎁 Sizning promo kodingiz: ${u.promoCode}\n\nDo'stingiz bilan bo'lishing — ikkalangiz ham to'lovda chegirma olasiz.`;
+    return renderScreen(chatId, msgText, backButton(chatId));
+  }
+  if (data === 'promo_enter') {
+    getState(chatId).mode = 'promo_enter';
+    const msgText = lang === 'ru' ? 'Введите промокод друга:' : "Do'stingizning promo kodini kiriting:";
+    return renderScreen(chatId, msgText, backButton(chatId));
+  }
+  if (data === 'lead_partner_start') {
+    getState(chatId).mode = 'lead_partner';
+    const msgText = lang === 'ru'
+      ? 'Хотите стать партнёром VizaAI! Напишите название организации и телефон/Telegram для связи.'
+      : "VizaAI'ga hamkor bo'lmoqchisiz! Tashkilotingiz nomi va telefon/Telegram'ingizni yozing.";
+    return renderScreen(chatId, msgText, backButton(chatId));
   }
 });
 
@@ -724,8 +848,84 @@ bot.onText(/\/tasdiqla (.+)/, async (msg, match) => {
   } else {
     await bot.sendMessage(targetId, `✅ "${purchase.name}" — ${tt.payment_confirmed_tour}`);
   }
+
+  // Bazada xarid holatini "tasdiqlangan" deb belgilash
+  const u = usersDB[String(targetId)];
+  if (u) {
+    const rec = [...u.purchases].reverse().find(p => p.status === 'pending' && p.key === purchase.key);
+    if (rec) { rec.status = 'confirmed'; rec.confirmedAt = new Date().toISOString(); saveDB(); }
+  }
+
   await bot.sendMessage(chatId, `Yuborildi: ${purchase.userLabel}`);
   pendingPurchases.delete(targetId);
+});
+
+// ---------------------------------------------------------------
+// ADMIN: statistika — /stats
+// ---------------------------------------------------------------
+bot.onText(/\/stats/, (msg) => {
+  const chatId = msg.chat.id;
+  if (String(chatId) !== String(ADMIN_CHAT_ID)) return;
+
+  const users = Object.entries(usersDB);
+  const total = users.length;
+  const withConfirmed = users.filter(([, u]) => u.purchases.some(p => p.status === 'confirmed')).length;
+  const withPendingOnly = users.filter(([, u]) =>
+    u.purchases.length > 0 && !u.purchases.some(p => p.status === 'confirmed')
+  ).length;
+  const noPurchaseAtAll = total - withConfirmed - withPendingOnly;
+
+  const text = `📊 VizaAI bot statistikasi\n\n` +
+    `👥 Jami ro'yxatdan o'tganlar: ${total}\n` +
+    `✅ Xarid qilganlar (tasdiqlangan): ${withConfirmed}\n` +
+    `⏳ So'rov yuborgan, lekin to'lamagan: ${withPendingOnly}\n` +
+    `❌ Hech narsa so'ramaganlar: ${noPurchaseAtAll}\n\n` +
+    `Kimga qo'ng'iroq qilish kerakligini ko'rish uchun: /qongiroq`;
+  bot.sendMessage(chatId, text);
+});
+
+// ---------------------------------------------------------------
+// ADMIN: qo'ng'iroq ro'yxati — sotib olmagan foydalanuvchilar
+// ---------------------------------------------------------------
+bot.onText(/\/qongiroq/, (msg) => {
+  const chatId = msg.chat.id;
+  if (String(chatId) !== String(ADMIN_CHAT_ID)) return;
+
+  const notBuyers = Object.entries(usersDB).filter(([, u]) =>
+    !u.purchases.some(p => p.status === 'confirmed')
+  );
+
+  if (notBuyers.length === 0) {
+    return bot.sendMessage(chatId, "Hozircha hammasi yaxshi — sotib olmagan ro'yxati bo'sh.");
+  }
+
+  const lines = notBuyers.slice(0, 50).map(([id, u]) => {
+    const status = u.purchases.length > 0 ? `so'radi lekin to'lamadi (${u.purchases.length})` : "hech nima so'ramadi";
+    const note = u.callNote ? ` | izoh: ${u.callNote}` : '';
+    return `📱 ${u.phone || '—'} — ${u.name || '(ismsiz)'} — ${status}${note}\n   /izoh_${id} <matn> — qo'ng'iroqdan keyin izoh yozish`;
+  });
+
+  const header = `☎️ Qo'ng'iroq qilinishi kerak (${notBuyers.length} kishi):\n\n`;
+  const fullText = header + lines.join('\n\n');
+
+  // Telegram xabar uzunligi cheklangan (~4096) — kerak bo'lsa bo'lib yuboramiz
+  const chunks = fullText.match(/[\s\S]{1,3500}/g) || [fullText];
+  chunks.forEach(chunk => bot.sendMessage(chatId, chunk));
+});
+
+// ---------------------------------------------------------------
+// ADMIN: qo'ng'iroqdan keyingi izohni saqlash — /izoh_<chatId> <matn>
+// ---------------------------------------------------------------
+bot.onText(/\/izoh_(\d+) (.+)/, (msg, match) => {
+  const chatId = msg.chat.id;
+  if (String(chatId) !== String(ADMIN_CHAT_ID)) return;
+  const targetId = match[1];
+  const note = match[2];
+  const u = usersDB[targetId];
+  if (!u) return bot.sendMessage(chatId, "Bunday foydalanuvchi topilmadi.");
+  u.callNote = note;
+  saveDB();
+  bot.sendMessage(chatId, `✅ Izoh saqlandi: ${u.name || targetId} — "${note}"`);
 });
 
 // ---------------------------------------------------------------
@@ -740,6 +940,58 @@ bot.on('message', async (msg) => {
   const t = T[lang];
   const s = getState(chatId);
   const userLabel = `${msg.from.first_name || ''} (@${msg.from.username || 'username yo\'q'}, ID: ${chatId})`;
+
+  // ---- RO'YXATDAN O'TISH — telefon raqami qabul qilinmoqda ----
+  if (s.mode === 'registering') {
+    const phone = msg.contact ? msg.contact.phone_number : text.trim();
+    if (!phone) {
+      const hint = lang === 'ru' ? 'Пожалуйста, отправьте номер телефона.' : 'Iltimos, telefon raqamingizni yuboring.';
+      return bot.sendMessage(chatId, hint);
+    }
+    const u = getUser(chatId);
+    u.phone = phone;
+    u.name = msg.from.first_name || '';
+    u.username = msg.from.username || '';
+    saveDB();
+
+    const pendingPayload = s.pendingPayload;
+    clearPendingState(chatId);
+
+    const welcomeBack = lang === 'ru'
+      ? `Спасибо! Вы зарегистрированы ✅\n\n🎁 Ваш личный промокод: ${u.promoCode}\nПоделитесь им с другом — вы оба получите скидку.`
+      : `Rahmat! Ro'yxatdan o'tdingiz ✅\n\n🎁 Sizning shaxsiy promo kodingiz: ${u.promoCode}\nDo'stingiz bilan bo'lishing — ikkalangiz ham chegirma olasiz.`;
+    await bot.sendMessage(chatId, welcomeBack, { reply_markup: { remove_keyboard: true } });
+
+    if (ADMIN_CHAT_ID) {
+      bot.sendMessage(ADMIN_CHAT_ID, `🆕 Yangi ro'yxatdan o'tish!\n\n👤 ${userLabel}\n📱 ${phone}`).catch(() => {});
+    }
+
+    return handleStartPayload(chatId, pendingPayload, msg.from);
+  }
+
+  // ---- PROMO KOD KIRITISH ----
+  if (s.mode === 'promo_enter' && text) {
+    clearPendingState(chatId);
+    const found = findUserByPromoCode(text);
+    const myCode = getUser(chatId).promoCode;
+
+    if (!found) {
+      const msgText = lang === 'ru' ? '❌ Такой промокод не найден. Проверьте и попробуйте снова через меню.' : "❌ Bunday promo kod topilmadi. Tekshirib, menyudan qayta urinib ko'ring.";
+      return sendContent(chatId, msgText, { reply_markup: backButton(chatId) });
+    }
+    const [ownerId] = found;
+    if (String(ownerId) === String(chatId)) {
+      const msgText = lang === 'ru' ? "❌ Нельзя использовать свой собственный промокод." : "❌ O'zingizning promo kodingizni ishlata olmaysiz.";
+      return sendContent(chatId, msgText, { reply_markup: backButton(chatId) });
+    }
+    const u = getUser(chatId);
+    u.referredBy = text.trim().toUpperCase();
+    saveDB();
+    const msgText = lang === 'ru'
+      ? `✅ Промокод принят! При покупке курса скидка будет применена автоматически.`
+      : `✅ Promo kod qabul qilindi! Kurs sotib olganingizda chegirma avtomatik qo'llaniladi.`;
+    return sendContent(chatId, msgText, { reply_markup: backButton(chatId) });
+  }
 
   // ---- Hujjat fotosi — CHUQUR AI TAHLILI (Claude vision) ----
   if (msg.photo && s.mode === 'doc') {
@@ -779,7 +1031,12 @@ Oxirida albatta eslating: bu AI tahlili, rasmiy tekshiruv o'rnini bosmaydi.`,
       await sendContent(chatId, `📄 ${feedback}`, { reply_markup: backButton(chatId) });
     } catch (err) {
       console.error('Hujjat tahlili xatosi:', err);
+      await bot.deleteMessage(chatId, analyzing.message_id).catch(() => {});
       await sendContent(chatId, t.ai_error, { reply_markup: backButton(chatId) });
+      // Admin uchun aniq xato matni — muammoni tezroq topish uchun
+      if (ADMIN_CHAT_ID) {
+        bot.sendMessage(ADMIN_CHAT_ID, `⚠️ Hujjat tahlilida xato:\n${err.message || err}\n\nFoydalanuvchi: ${userLabel}`).catch(() => {});
+      }
     }
     return;
   }
