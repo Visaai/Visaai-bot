@@ -705,6 +705,8 @@ bot.on('callback_query', async (query) => {
   const t = T[lang];
   bot.answerCallbackQuery(query.id).catch(() => {});
 
+  try {
+
   if (!data.startsWith('chance_ans_')) clearPendingState(chatId);
 
   if (data === 'menu') return sendMainMenu(chatId);
@@ -886,6 +888,13 @@ bot.on('callback_query', async (query) => {
       : "VizaAI'ga hamkor bo'lmoqchisiz! Tashkilotingiz nomi va telefon/Telegram'ingizni yozing.";
     return renderScreen(chatId, msgText, backButton(chatId));
   }
+
+  } catch (err) {
+    console.error('callback_query xatosi:', err);
+    notifyAdmins(`🔴 Bot xatosi (callback): ${err.message || err}\n\nchatId: ${chatId}, data: ${data}`);
+    // Foydalanuvchiga ham xabar beramiz, jim qolmasin
+    bot.sendMessage(chatId, lang === 'ru' ? 'Произошла ошибка. Попробуйте /start заново.' : 'Xatolik yuz berdi. Iltimos, /start orqali qaytadan boshlang.').catch(() => {});
+  }
 });
 
 // ---------------------------------------------------------------
@@ -1008,6 +1017,8 @@ bot.on('message', async (msg) => {
   const t = T[lang];
   const s = getState(chatId);
   const userLabel = `${msg.from.first_name || ''} (@${msg.from.username || 'username yo\'q'}, ID: ${chatId})`;
+
+  try {
 
   // ---- RO'YXATDAN O'TISH — telefon raqami qabul qilinmoqda ----
   if (s.mode === 'registering') {
@@ -1158,8 +1169,27 @@ Oxirida albatta eslating: bu AI tahlili, rasmiy tekshiruv o'rnini bosmaydi.`,
       await sendContent(chatId, t.ai_error, { reply_markup: backButton(chatId) });
     }
   }
+
+  } catch (err) {
+    console.error('message xatosi:', err);
+    notifyAdmins(`🔴 Bot xatosi (message): ${err.message || err}\n\nchatId: ${chatId}`);
+    bot.sendMessage(chatId, lang === 'ru' ? 'Произошла ошибка. Попробуйте /start заново.' : 'Xatolik yuz berdi. Iltimos, /start orqali qaytadan boshlang.').catch(() => {});
+  }
 });
 
 bot.on('polling_error', (err) => console.error('Polling xatosi:', err.message));
+
+// ---------------------------------------------------------------
+// GLOBAL XAVFSIZLIK TARMOG'I — hech qanday kutilmagan xato butun
+// botni butunlay o'chirib qo'ymasligi uchun oxirgi himoya chizig'i.
+// ---------------------------------------------------------------
+process.on('unhandledRejection', (err) => {
+  console.error('Ushlanmagan promise xatosi:', err);
+  notifyAdmins(`🔴 Kutilmagan bot xatosi (unhandledRejection): ${err && err.message ? err.message : err}`);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Ushlanmagan xato:', err);
+  notifyAdmins(`🔴 Kutilmagan bot xatosi (uncaughtException): ${err && err.message ? err.message : err}`);
+});
 
 console.log('VizaAI bot (yakuniy versiya) ishga tushdi ✅');
