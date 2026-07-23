@@ -236,8 +236,8 @@ const FAQ_DATA = [
    "Безопасны ли мои документы?", "Да. Ваши документы используются только для подготовки вашей заявки и не передаются третьим лицам без вашего согласия."],
   ["Qaysi davlatlar bilan ishlaysiz?", "Yaponiya, Shengen, AQSH, Buyuk Britaniya va Braziliya uchun to'liq tayyor yo'riqnomalar bor. Boshqa istalgan davlat bo'yicha AI yordamchi orqali maslahat olishingiz mumkin.",
    "С какими странами вы работаете?", "Есть готовые полные инструкции по Японии, Шенгену, США, Великобритании и Бразилии. По любой другой стране можно получить совет через AI-помощника."],
-  ["To'lovni qanday amalga oshiraman?", "Pullik xizmatlar (video darslik, premium konsultatsiya) uchun to'lov usullari tez orada e'lon qilinadi.",
-   "Как произвести оплату?", "Способы оплаты платных услуг (видеокурсы, премиум-консультация) будут объявлены в ближайшее время."],
+  ["To'lovni qanday amalga oshiraman?", "Kursni tanlaganingizdan so'ng, shu bot orqali to'lov rekvizitlari avtomatik yuboriladi — skrinshot yuborsangiz, tasdiqlangach kanal havolasi keladi.",
+   "Как произвести оплату?", "После выбора курса реквизиты для оплаты придут прямо в этом боте — отправьте скриншот, после подтверждения получите ссылку на канал."],
 ];
 
 const COURSE_CHANNELS = {
@@ -466,7 +466,7 @@ async function sendMainMenu(chatId) {
 }
 
 // ---------------------------------------------------------------
-// DEEP-LINK PAYLOAD ISHLASH (saytdan t.me/Bot?start=XXX orqali kelganda)
+// DEEP-LINK PAYLOAD ISHLASH (saytdan t.me/VisaAi_Uz_Bot?start=XXX orqali kelganda)
 // ---------------------------------------------------------------
 async function triggerCoursePurchase(chatId, key, fromUser) {
   const lang = getLang(chatId);
@@ -793,6 +793,14 @@ Oxirida albatta eslating: bu AI tahlili, rasmiy tekshiruv o'rnini bosmaydi.`,
       await bot.sendMessage(ADMIN_CHAT_ID, `📩 ${kind}!\n\nMa'lumot: ${text}\n\n👤 Yuboruvchi: ${userLabel}`);
     }
     return;
+  }
+
+  // ---- Rasm kelgan, lekin "Hujjatni AI tekshirish" bosilmagan — bot jim qolmasin ----
+  if (msg.photo && s.mode !== 'doc') {
+    const hint = lang === 'ru'
+      ? 'Я вижу, что вы отправили фото. Чтобы я его проанализировал, сначала нажмите «📸 Проверка документа AI» в меню.'
+      : "Rasm yuborganingizni ko'ryapman. Uni tahlil qilishim uchun avval menyudan \"📸 Hujjatni AI tekshirish\" tugmasini bosing.";
+    return bot.sendMessage(chatId, hint, { reply_markup: backButton(chatId) });
   }
 
   // ---- Saytdan kelgan lid xabari ----
