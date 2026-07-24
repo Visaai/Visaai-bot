@@ -1,14 +1,18 @@
 {
   "name": "vizaai-bot",
   "version": "1.0.0",
-  "description": "VizaAI Telegram bot",
+  "description": "VizaAI Telegram bot va AI API server",
   "main": "bot.js",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node bot.js",
+    "start-api": "node api-server.js"
   },
   "dependencies": {
     "node-telegram-bot-api": "^0.66.0",
     "@anthropic-ai/sdk": "^0.32.0",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "mongodb": "^6.9.0"
   }
 }
