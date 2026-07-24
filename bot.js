@@ -54,16 +54,15 @@ const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 const SITE_URL = 'https://vizaai.uz';
 
 // ---------------------------------------------------------------
-// FOYDALANUVCHILAR BAZASI — JSON fayl orqali saqlanadi
-// ⚠️ MUHIM: Render'ning bepul/Starter tarifida disk vaqtinchalik —
-// har safar QAYTA DEPLOY qilinganda (yangi kod yuklanganda) bu fayl
-// TOZALANISHI MUMKIN. Bot qayta ishga tushishi (restart) bilan
-// deploy qilish (redeploy) FARQLI narsa: oddiy restart'da fayl saqlanadi,
-// lekin GitHub'dan yangi kod tortilganda (redeploy) — yo'qolishi mumkin.
-// Uzoq muddatda haqiqiy ma'lumotlar bazasi (masalan MongoDB Atlas —
-// bepul tarifi bor) ga o'tish tavsiya etiladi.
+// FOYDALANUVCHILAR BAZASI
+// Asosiy: JSON fayl (tezkor, lekin Render qayta deploy qilganda o'chib ketishi mumkin).
+// Qo'shimcha: agar MONGODB_URI muhit o'zgaruvchisi sozlangan bo'lsa, MongoDB
+// orqali HAQIQIY DOIMIY saqlanadi — redeploy qilinsa ham ma'lumot yo'qolmaydi.
+// MONGODB_URI yo'q bo'lsa, bot avvalgidek fayl orqali ishlayveradi (ogohlantirish bilan).
 // ---------------------------------------------------------------
 const DB_FILE = path.join(__dirname, 'users_data.json');
+const MONGODB_URI = process.env.MONGODB_URI || '';
+let mongoCollection = null;
 
 function loadDB() {
   try {
@@ -73,13 +72,47 @@ function loadDB() {
   }
 }
 function saveDB() {
+  // 1) Fayl orqali — tezkor, zaxira sifatida
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(usersDB, null, 2));
   } catch (e) {
-    console.error("Baza saqlashda xato:", e.message);
+    console.error("Baza saqlashda xato (fayl):", e.message);
+  }
+  // 2) MongoDB orqali — haqiqiy doimiy saqlash (agar sozlangan bo'lsa)
+  if (mongoCollection) {
+    const ops = Object.entries(usersDB).map(([chatId, data]) => ({
+      updateOne: { filter: { _id: chatId }, update: { $set: data }, upsert: true },
+    }));
+    if (ops.length) {
+      mongoCollection.bulkWrite(ops).catch(e => console.error('MongoDB saqlashda xato:', e.message));
+    }
   }
 }
 let usersDB = loadDB(); // { [chatId]: { name, username, phone, joinedAt, promoCode, referredBy, purchases:[], callNote } }
+
+async function initMongoDB() {
+  if (!MONGODB_URI) {
+    console.log("⚠️ MONGODB_URI sozlanmagan — bot faqat fayl orqali ishlaydi (redeploy'da ma'lumot yo'qolishi mumkin).");
+    return;
+  }
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(MONGODB_URI);
+    await client.connect();
+    const db = client.db('vizaai');
+    mongoCollection = db.collection('users');
+    const allUsers = await mongoCollection.find({}).toArray();
+    allUsers.forEach(doc => {
+      const { _id, ...userData } = doc;
+      if (!usersDB[_id]) usersDB[_id] = userData; // MongoDB ustuvor, lekin faylda yo'q bo'lsa qo'shamiz
+    });
+    console.log(`✅ MongoDB'ga ulandi — ${allUsers.length} ta foydalanuvchi yuklandi. Ma'lumotlar endi redeploy'da yo'qolmaydi.`);
+    saveDB(); // birlashtirilgan holatni darhol saqlaymiz
+  } catch (e) {
+    console.error('❌ MongoDB ulanishda xato:', e.message);
+  }
+}
+initMongoDB();
 
 function getUser(chatId) {
   const key = String(chatId);
@@ -880,7 +913,6 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
     `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${desc}\n\n${t.purchase_pay}\n\n💳 ${t.card_label}: XXXX XXXX XXXX XXXX\n👤 ${t.fullname_label}`,
     backButton(chatId)
   );
-  sendAdminProfileCard(chatId, `Kurs sotib olishni boshladi: ${name} (${course.price})`);
 }
 
 async function handleStartPayload(chatId, payload, fromUser) {
@@ -1033,7 +1065,6 @@ bot.on('callback_query', async (query) => {
     }
     const resultText = computeChanceResult(chatId);
     clearPendingState(chatId);
-    sendAdminProfileCard(chatId, "Viza imkoniyati testini tugatdi");
 
     const recKey = recommendCourse(chatId);
     const recCourse = COURSE_CHANNELS[recKey];
@@ -1076,7 +1107,6 @@ bot.on('callback_query', async (query) => {
     const u = getUser(chatId);
     u.interestedIn = `${c.name} (sayohat viza)`;
     saveDB();
-    sendAdminProfileCard(chatId, `Checklist ko'rdi: ${c.name} (sayohat viza)`);
     const list = c.items.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]} — ${lang === 'ru' ? it[3] : it[2]}`).join('\n');
     return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
@@ -1086,7 +1116,6 @@ bot.on('callback_query', async (query) => {
     const u = getUser(chatId);
     u.interestedIn = `${c.name} (ishchi viza)`;
     saveDB();
-    sendAdminProfileCard(chatId, `Checklist ko'rdi: ${c.name} (ishchi viza)`);
     const list = WORK_CHECKLIST.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]} — ${lang === 'ru' ? it[3] : it[2]}`).join('\n');
     return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
@@ -1096,7 +1125,6 @@ bot.on('callback_query', async (query) => {
     const u = getUser(chatId);
     u.interestedIn = `${c.name} (talaba vizasi)`;
     saveDB();
-    sendAdminProfileCard(chatId, `Checklist ko'rdi: ${c.name} (talaba vizasi)`);
     const list = STUDENT_CHECKLIST.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]} — ${lang === 'ru' ? it[3] : it[2]}`).join('\n');
     return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
   }
@@ -1165,7 +1193,6 @@ bot.on('callback_query', async (query) => {
     u.docHistory.push({ type: `${country.name} — ${readyPct}% tayyor`, date: new Date().toISOString() });
     u.docHistory = u.docHistory.slice(-10);
     saveDB();
-    sendAdminProfileCard(chatId, `Hujjat tekshiruvini yakunladi: ${country.name} — ${readyPct}% tayyor`);
 
     clearPendingState(chatId);
     return renderScreen(chatId, head, backButton(chatId));
@@ -1206,7 +1233,6 @@ bot.on('callback_query', async (query) => {
     await renderScreen(chatId, `"${name}" — ${tour.price} 🧳\n\n${t.tour_request_ok}`, backButton(chatId));
     u.interestedIn = `${name} (tur paket)`;
     saveDB();
-    sendAdminProfileCard(chatId, `Tur paketi so'radi: ${name} (${tour.price})`);
     return;
   }
 
@@ -1413,12 +1439,12 @@ bot.on('message', async (msg) => {
       ]] },
     });
 
-    notifyAdmins(`🆕 Yangi mijoz kirdi!\n\n👤 ${userLabel}\n📱 ${phone}\n\n⏳ 2 daqiqadan so'ng uning bot ichidagi faoliyati haqida qo'shimcha xabar keladi...`);
+    notifyAdmins(`🆕 Yangi mijoz kirdi!\n\n👤 ${userLabel}\n📱 ${phone}\n\n⏳ 5 daqiqadan so'ng uning bot ichidagi faoliyati haqida qo'shimcha xabar keladi...`);
 
-    // 2 daqiqadan keyin — mijoz shu vaqt ichida bot ichida nima qilgani haqida to'liq xulosa
+    // 5 daqiqadan keyin — mijoz shu vaqt ichida bot ichida nima qilgani haqida to'liq xulosa
     setTimeout(() => {
-      sendAdminProfileCard(chatId, "Kirganidan 2 daqiqa o'tdi — bot ichidagi faoliyati");
-    }, 2 * 60 * 1000);
+      sendAdminProfileCard(chatId, "Kirganidan 5 daqiqa o'tdi — bot ichidagi faoliyati");
+    }, 5 * 60 * 1000);
 
     return;
   }
@@ -1599,7 +1625,6 @@ Oxiriga albatta shuni qo'shing: "⚠️ Bu AI orqali o'qilgan ma'lumot, xatolik 
       u.docHistory.push({ type: (docTypeMatch ? docTypeMatch[1].trim() : "noma'lum hujjat").slice(0, 60), date: new Date().toISOString() });
       u.docHistory = u.docHistory.slice(-10); // faqat oxirgi 10 tasi saqlanadi
       saveDB();
-      sendAdminProfileCard(chatId, "Hujjatini AI orqali tekshirdi");
     } catch (err) {
       console.error(`Hujjat tahlili xatosi (bosqich: ${stage}):`, err);
       await bot.deleteMessage(chatId, analyzing.message_id).catch(() => {});
@@ -1628,6 +1653,26 @@ Oxiriga albatta shuni qo'shing: "⚠️ Bu AI orqali o'qilgan ma'lumot, xatolik 
 
   // ---- AI yordamchi / erkin savol ----
   if (text) {
+    const u = getUser(chatId);
+    const isPaying = (u.purchases || []).some(p => p.status === 'confirmed');
+    const limit = isPaying ? 25 : 5;
+    u.aiQuestionCount = (u.aiQuestionCount || 0) + 1;
+
+    if (u.aiQuestionCount > limit) {
+      const limitMsg = isPaying
+        ? (lang === 'ru' ? `Вы использовали лимит в ${limit} вопросов. Обратитесь к нашему специалисту через "Премиум-консультацию".` : `Siz ${limit} ta savol limitidan foydalandingiz. "Premium konsultatsiya" orqali mutaxassisimizga murojaat qiling.`)
+        : (lang === 'ru'
+            ? `Вы использовали ${limit} бесплатных вопросов AI на сегодня 🙌\n\nВ платных тарифах (после покупки любого курса) лимит увеличивается до 25 вопросов. Также вы можете купить курс — там разбираются все детали.`
+            : `Siz bugungi ${limit} ta bepul AI savolingizdan foydalandingiz 🙌\n\nPullik tariflarda (istalgan kursni sotib olganingizdan keyin) limit 25 tagacha oshadi. Yoki kursni sotib oling — u yerda barcha detallar ochib berilgan.`);
+      u.aiQuestionCount -= 1; // hisoblamaymiz, chunki javob berilmadi
+      saveDB();
+      return sendContent(chatId, limitMsg, { reply_markup: { inline_keyboard: [
+        [{ text: lang === 'ru' ? '🎬 Смотреть курсы' : "🎬 Kurslarni ko'rish", callback_data: 'courses' }],
+        [{ text: t.to_menu, callback_data: 'menu' }],
+      ] } });
+    }
+    saveDB();
+
     try {
       await bot.sendChatAction(chatId, 'typing');
       const history = conversations.get(chatId) || [];
