@@ -398,6 +398,11 @@ const FAQ_DATA = [
    "Как произвести оплату?", "После выбора курса реквизиты для оплаты придут прямо в этом боте — отправьте скриншот, после подтверждения получите ссылку на канал."],
 ];
 
+const SINGLE_COURSE_DESC = {
+  uz: "🎬 Video darslik + hujjatlarni aynan qayerdan, qanday olish sirlari (bosqichma-bosqich)",
+  ru: "🎬 Видеоурок + секреты, где и как именно получить каждый документ (пошагово)",
+};
+
 const COURSE_CHANNELS = {
   kurs_shengen:    { name: 'Shengen vizasi: to‘liq kurs',       nameRu: 'Виза Шенген: полный курс',        price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_SHENGEN' },
   kurs_yaponiya:   { name: 'Yaponiya turistik vizasi',          nameRu: 'Туристическая виза Японии',       price: '149 000 so‘m', link: 'HAVOLA_BU_YERGA_YAPONIYA' },
@@ -408,7 +413,24 @@ const COURSE_CHANNELS = {
   kurs_hongkong:   { name: 'Hong Kong vizasi',                  nameRu: 'Виза Гонконга',                   price: '59 000 so‘m',  link: 'HAVOLA_BU_YERGA_HONGKONG' },
   kurs_avstraliya: { name: 'Avstraliya visitor vizasi',         nameRu: 'Виза посетителя Австралии',       price: '299 000 so‘m', link: 'HAVOLA_BU_YERGA_AVSTRALIYA' },
   kurs_kanada:     { name: 'Kanada visitor vizasi',             nameRu: 'Виза посетителя Канады',          price: '299 000 so‘m', link: 'HAVOLA_BU_YERGA_KANADA' },
-  kurs_barchasi:   { name: 'Barcha video darsliklar paketi',    nameRu: 'Пакет всех видеокурсов',          price: '999 000 so‘m', link: 'HAVOLA_BU_YERGA_BARCHASI' },
+  kurs_barchasi:   {
+    name: 'Barcha video darsliklar paketi', nameRu: 'Пакет всех видеокурсов',
+    price: '999 000 so‘m', link: 'HAVOLA_BU_YERGA_BARCHASI',
+    desc: `Paketga kiradi:
+🎓 12-15 davlat bo'yicha to'liq viza darsliklari
+✈️ Eng arzon aviabilet olish sirlari
+🏨 Arzon mehmonxona topish sirlari
+📶 Arzon eSIM olish yo'llari
+🚗 Arzon kruiz, rent car va transfer buyurtma qilish
+💡 Sayohatda kerak bo'ladigan TOP 50 lifehack`,
+    descRu: `В пакет входит:
+🎓 Полные видеокурсы по 12-15 странам
+✈️ Секреты самых дешёвых авиабилетов
+🏨 Секреты поиска недорогих отелей
+📶 Как получить дешёвый eSIM
+🚗 Недорогой круиз, аренда авто и трансфер
+💡 ТОП-50 лайфхаков для путешествий`,
+  },
 };
 
 const TOUR_PACKAGES = {
@@ -845,6 +867,9 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
   const course = COURSE_CHANNELS[key];
   if (!course) return sendMainMenu(chatId);
   const name = lang === 'ru' ? course.nameRu : course.name;
+  const desc = key === 'kurs_barchasi'
+    ? (lang === 'ru' ? course.descRu : course.desc)
+    : SINGLE_COURSE_DESC[lang];
   const userLabel = `${fromUser.first_name || ''} (@${fromUser.username || 'username yo\'q'}, ID: ${chatId})`;
   pendingPurchases.set(String(chatId), { kind: 'course', key, name, userLabel });
 
@@ -853,7 +878,7 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
   saveDB();
 
   await renderScreen(chatId,
-    `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${t.purchase_pay}\n\n💳 ${t.card_label}: XXXX XXXX XXXX XXXX\n👤 ${t.fullname_label}`,
+    `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${desc}\n\n${t.purchase_pay}\n\n💳 ${t.card_label}: XXXX XXXX XXXX XXXX\n👤 ${t.fullname_label}`,
     backButton(chatId)
   );
   sendAdminProfileCard(chatId, `Kurs sotib olishni boshladi: ${name} (${course.price})`);
@@ -875,7 +900,8 @@ async function handleStartPayload(chatId, payload, fromUser) {
       [{ text: `${lang === 'ru' ? c.nameRu : c.name} — ${c.price}`, callback_data: `buy_course_${key}` }]
     ));
     rows.push([{ text: t.to_menu, callback_data: 'menu' }]);
-    return renderScreen(chatId, t.courses_head, { inline_keyboard: rows });
+    const head = `${t.courses_head}\n\n${SINGLE_COURSE_DESC[lang]}\n\n🔥 ${lang === 'ru' ? 'Пакет всех курсов' : 'Barcha kurslar paketi'} (999 000):\n${lang === 'ru' ? COURSE_CHANNELS.kurs_barchasi.descRu : COURSE_CHANNELS.kurs_barchasi.desc}`;
+    return renderScreen(chatId, head, { inline_keyboard: rows });
   }
 
   // Tur paketlar ro'yxati
@@ -1140,7 +1166,8 @@ bot.on('callback_query', async (query) => {
       [{ text: `${lang === 'ru' ? c.nameRu : c.name} — ${c.price}`, callback_data: `buy_course_${key}` }]
     ));
     rows.push([{ text: t.to_menu, callback_data: 'menu' }]);
-    return renderScreen(chatId, t.courses_head, { inline_keyboard: rows });
+    const head = `${t.courses_head}\n\n${SINGLE_COURSE_DESC[lang]}\n\n🔥 ${lang === 'ru' ? 'Пакет всех курсов' : 'Barcha kurslar paketi'} (999 000):\n${lang === 'ru' ? COURSE_CHANNELS.kurs_barchasi.descRu : COURSE_CHANNELS.kurs_barchasi.desc}`;
+    return renderScreen(chatId, head, { inline_keyboard: rows });
   }
   if (data === 'tours') {
     const rows = Object.entries(TOUR_PACKAGES).map(([key, c]) => (
