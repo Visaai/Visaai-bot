@@ -404,12 +404,13 @@ const SINGLE_COURSE_DESC = {
 };
 
 const COURSE_CHANNELS = {
-  kurs_shengen:    { name: 'Shengen vizasi: to‘liq kurs',       nameRu: 'Виза Шенген: полный курс',        price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_SHENGEN' },
+  kurs_ispaniya:   { name: 'Ispaniya vizasi: to‘liq kurs',       nameRu: 'Виза Испании: полный курс',       price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_ISPANIYA' },
+  kurs_france:     { name: 'Fransiya vizasi: to‘liq kurs',       nameRu: 'Виза Франции: полный курс',       price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_FRANCE' },
+  kurs_germany:    { name: 'Germaniya vizasi: to‘liq kurs',      nameRu: 'Виза Германии: полный курс',      price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_GERMANY' },
+  kurs_combo:      { name: 'Kombo: Litva/Belgiya/Avstriya/Bolgariya/Lyuksemburg/Niderlandiya', nameRu: 'Комбо: Литва/Бельгия/Австрия/Болгария/Люксембург/Нидерланды', price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_COMBO' },
   kurs_yaponiya:   { name: 'Yaponiya turistik vizasi',          nameRu: 'Туристическая виза Японии',       price: '149 000 so‘m', link: 'HAVOLA_BU_YERGA_YAPONIYA' },
   kurs_aqsh:       { name: 'AQSH B1/B2: anketa va suhbat',      nameRu: 'США B1/B2: анкета и собеседование', price: '299 000 so‘m', link: 'HAVOLA_BU_YERGA_AQSH' },
   kurs_uk:         { name: 'Buyuk Britaniya visitor vizasi',    nameRu: 'Виза посетителя Великобритании',  price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_UK' },
-  kurs_talaba:     { name: 'Talaba vizasi: qabuldan vizagacha', nameRu: 'Студенческая виза: от поступления до визы', price: '159 000 so‘m', link: 'HAVOLA_BU_YERGA_TALABA' },
-  kurs_ishchi:     { name: 'Ishchi vizaga tayyorgarlik',        nameRu: 'Подготовка к рабочей визе',       price: '169 000 so‘m', link: 'HAVOLA_BU_YERGA_ISHCHI' },
   kurs_hongkong:   { name: 'Hong Kong vizasi',                  nameRu: 'Виза Гонконга',                   price: '59 000 so‘m',  link: 'HAVOLA_BU_YERGA_HONGKONG' },
   kurs_avstraliya: { name: 'Avstraliya visitor vizasi',         nameRu: 'Виза посетителя Австралии',       price: '299 000 so‘m', link: 'HAVOLA_BU_YERGA_AVSTRALIYA' },
   kurs_kanada:     { name: 'Kanada visitor vizasi',             nameRu: 'Виза посетителя Канады',          price: '299 000 so‘m', link: 'HAVOLA_BU_YERGA_KANADA' },
@@ -470,15 +471,16 @@ function buildSystemPrompt(lang, chatId) {
 VIZAAI HAQIDA:
 - Bepul: hujjatlar checklisti, AI yordamchi (shu chat), viza imkoniyati testi.
 - PULLIK VIDEO KURSLAR (bularni faol tavsiya qiling — bu bizning asosiy daromad manbai):
-  Shengen (199 000 so'm), Yaponiya (149 000), AQSH B1/B2 (299 000), Buyuk Britaniya (199 000),
-  Talaba vizasi (159 000), Ishchi viza (169 000), Hong Kong (59 000), Avstraliya (299 000), Kanada (299 000),
+  Ispaniya (199 000), Fransiya (199 000), Germaniya (199 000), Kombo: Litva/Belgiya/Avstriya/Bolgariya/Lyuksemburg/Niderlandiya (199 000),
+  Yaponiya (149 000), AQSH B1/B2 (299 000), Buyuk Britaniya (199 000),
+  Hong Kong (59 000), Avstraliya (299 000), Kanada (299 000),
   yoki BARCHA KURSLAR PAKETI — 999 000 so'm (1 700 000 o'rniga, ~40% chegirma).
 - Tur paketlar: Turkiya ($599), Vyetnam ($699), Yevropa ($1799), Yaponiya ($1250).
 - Premium konsultatsiya — hamkor mutaxassis bilan shaxsiy maslahat.
 ${historyBlock}
 MUHIM QOIDA — KURSLARNI REKLAMA QILISH:
 Deyarli har bir javobingiz oxirida, mavzuga mos keladigan aniq video kursni **qisqa va tabiiy** tarzda eslatib o'ting.
-Masalan: agar Shengen haqida so'ralsa — "Shengen bo'yicha to'liq video kursimiz bor (199 000 so'm) — barcha bosqichlarni bosqichma-bosqich ko'rsatadi."
+Masalan: agar Shengen haqida so'ralsa — aniq qaysi davlat kerakligini so'rang yoki mos kursni ayting: Ispaniya/Fransiya/Germaniya (har biri 199 000 so'm) yoki Litva/Belgiya/Avstriya/Bolgariya/Lyuksemburg/Niderlandiya uchun Kombo kurs (199 000 so'm).
 Agar umumiy savol bo'lsa — "Barcha kurslar paketini ko'rib chiqing — 999 000 so'mga 9 ta davlat kursi, 40% chegirma bilan."
 Bu majburiy emas, lekin JUDA tavsiya etiladi — bizning maqsadimiz odamlarni kurslarga yo'naltirish.
 
@@ -640,9 +642,15 @@ function chanceQuestionKeyboard(stepIdx, lang) {
   const rows = step.options.map((o, i) => ([{ text: o[lang], callback_data: `chance_ans_${stepIdx}_${i}` }]));
   return { inline_keyboard: rows };
 }
-function chanceQuestionText(stepIdx, lang) {
+function chanceQuestionText(stepIdx, lang, chatId) {
   const step = CHANCE_QUESTIONS[stepIdx];
-  return `[${stepIdx + 1}/${CHANCE_QUESTIONS.length}] ${step.q[lang]}`;
+  const u = chatId ? usersDB[String(chatId)] : null;
+  const name = u && u.name ? u.name : '';
+  let prefix = '';
+  if (name && stepIdx === 0) {
+    prefix = lang === 'ru' ? `${name}, отлично! ` : `${name}, ajoyib! `;
+  }
+  return `${prefix}[${stepIdx + 1}/${CHANCE_QUESTIONS.length}] ${step.q[lang]}`;
 }
 const CHANCE_CATEGORIES = [
   { key: 'finance', keys: ['income', 'bankTurnover', 'payer'],
@@ -684,20 +692,12 @@ function analyzeChanceCategories(chanceScore, lang) {
 const COUNTRY_CHANCE_LIST = [
   { key: 'hongkong', name: { uz: 'Hong Kong', ru: 'Гонконг' }, flag: '🇭🇰' },
   { key: 'japan', name: { uz: 'Yaponiya', ru: 'Япония' }, flag: '🇯🇵' },
-  { key: 'france', name: { uz: 'Fransiya', ru: 'Франция' }, flag: '🇫🇷' },
-  { key: 'spain', name: { uz: 'Ispaniya', ru: 'Испания' }, flag: '🇪🇸' },
-  { key: 'germany', name: { uz: 'Germaniya', ru: 'Германия' }, flag: '🇩🇪' },
-  { key: 'austria', name: { uz: 'Avstriya', ru: 'Австрия' }, flag: '🇦🇹' },
-  { key: 'hungary', name: { uz: 'Vengriya', ru: 'Венгрия' }, flag: '🇭🇺' },
-  { key: 'bulgaria', name: { uz: 'Bolgariya', ru: 'Болгария' }, flag: '🇧🇬' },
-  { key: 'lithuania', name: { uz: 'Litva', ru: 'Литва' }, flag: '🇱🇹' },
+  { key: 'schengen', name: { uz: 'Shengen davlatlari (Ispaniya/Fransiya/Germaniya va h.k.)', ru: 'Страны Шенгена (Испания/Франция/Германия и др.)' }, flag: '🇪🇺' },
   { key: 'usa', name: { uz: 'AQSH', ru: 'США' }, flag: '🇺🇸' },
   { key: 'uk', name: { uz: 'Buyuk Britaniya', ru: 'Великобритания' }, flag: '🇬🇧' },
   { key: 'canada', name: { uz: 'Kanada', ru: 'Канада' }, flag: '🇨🇦' },
   { key: 'australia', name: { uz: 'Avstraliya', ru: 'Австралия' }, flag: '🇦🇺' },
 ];
-
-const NEEDS_SCHENGEN_HISTORY = ['germany', 'austria', 'hungary', 'bulgaria', 'lithuania'];
 
 function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
 
@@ -718,20 +718,17 @@ function calculateCountryScores(chatId) {
 
   const results = {};
   results.hongkong = 100; // Hong Kong deyarli hech qachon rad etmaydi
-  results.japan = hasGoodJob ? 95 : clamp(basePct + 8, 15, 90);
-  results.france = clamp(basePct + 12, 20, 98); // hujjat kuchli bo'lsa, safar tarixisiz ham beriladi
-  results.spain = clamp(basePct + 12, 20, 98);
+  results.japan = hasGoodJob ? 95 : clamp(basePct + 15, 40, 92);
 
-  const schengenAdj = visitedSchengen ? 12 : -18;
-  NEEDS_SCHENGEN_HISTORY.forEach(key => {
-    results[key] = clamp(basePct + schengenAdj, 5, 95);
-  });
+  // Barcha Shengen davlatlari — bitta, yuqoriroq va optimistik foiz
+  results.schengen = clamp(basePct + 25 + (visitedSchengen ? 10 : 0), 50, 98);
 
-  // AQSH/UK/Kanada/Avstraliya — bir xil, standart baholash
-  results.usa = basePct;
-  results.uk = basePct;
-  results.canada = basePct;
-  results.australia = basePct;
+  // AQSH/UK/Kanada/Avstraliya — bir xil, optimistik baholash
+  const standardBoosted = clamp(basePct + 18, 45, 95);
+  results.usa = standardBoosted;
+  results.uk = standardBoosted;
+  results.canada = standardBoosted;
+  results.australia = standardBoosted;
 
   return { results, visitedSchengen, basePct };
 }
@@ -741,16 +738,16 @@ function recommendCourse(chatId) {
   const s = getState(chatId);
   const interestedIn = (u.interestedIn || '').toLowerCase();
   const countryMap = [
-    ['shengen', 'kurs_shengen'], ['yaponiya', 'kurs_yaponiya'],
-    ['aqsh', 'kurs_aqsh'], ['buyuk britaniya', 'kurs_uk'],
+    ['ispaniya', 'kurs_ispaniya'], ['fransiya', 'kurs_france'], ['germaniya', 'kurs_germany'],
+    ['litva', 'kurs_combo'], ['belgiya', 'kurs_combo'], ['avstriya', 'kurs_combo'],
+    ['bolgariya', 'kurs_combo'], ['lyuksemburg', 'kurs_combo'], ['niderlandiya', 'kurs_combo'],
+    ['shengen', 'kurs_france'], // aniq davlat bilinmasa — Fransiya bosh kurs sifatida tavsiya etiladi
+    ['yaponiya', 'kurs_yaponiya'], ['aqsh', 'kurs_aqsh'], ['buyuk britaniya', 'kurs_uk'],
     ['hong kong', 'kurs_hongkong'], ['avstraliya', 'kurs_avstraliya'], ['kanada', 'kurs_kanada'],
   ];
   for (const [kw, key] of countryMap) {
     if (interestedIn.includes(kw)) return key;
   }
-  const purposeIdx = s.chanceAnswers ? s.chanceAnswers['purpose'] : undefined;
-  if (purposeIdx === 1) return 'kurs_ishchi';
-  if (purposeIdx === 2) return 'kurs_talaba';
   return 'kurs_barchasi';
 }
 
@@ -759,12 +756,14 @@ function recommendCourse(chatId) {
 function detectMentionedCourse(replyText) {
   const lower = replyText.toLowerCase();
   const keywordMap = [
-    [['shengen', 'шенген'], 'kurs_shengen'],
+    [['ispaniya', 'испани'], 'kurs_ispaniya'],
+    [['fransiya', 'франци'], 'kurs_france'],
+    [['germaniya', 'германи'], 'kurs_germany'],
+    [['litva', 'литв', 'belgiya', 'бельги', 'avstriya', 'австри', 'bolgariya', 'болгари', 'lyuksemburg', 'люксембург', 'niderlandiya', 'нидерланд', 'kombo', 'комбо'], 'kurs_combo'],
+    [['shengen', 'шенген'], 'kurs_france'], // aniq davlat aytilmasa — Fransiya
     [['yaponiya', 'япони'], 'kurs_yaponiya'],
     [['aqsh', 'сша', 'b1/b2', 'b1-b2'], 'kurs_aqsh'],
     [['buyuk britaniya', 'великобритан'], 'kurs_uk'],
-    [['talaba viza', 'студенческ'], 'kurs_talaba'],
-    [['ishchi viza', 'рабоч'], 'kurs_ishchi'],
     [['hong kong', 'гонконг'], 'kurs_hongkong'],
     [['avstraliya', 'австрал'], 'kurs_avstraliya'],
     [['kanada', 'канад'], 'kurs_kanada'],
@@ -813,8 +812,8 @@ function computeChanceResult(chatId) {
   let notesText = '';
   if (!visitedSchengen) {
     notesText += lang === 'ru'
-      ? "\n\n⚠️ Для Германии/Австрии/Венгрии/Болгарии/Литвы: рекомендуется сначала съездить в любую другую страну Шенгена и вернуться — это заметно повышает шансы."
-      : "\n\n⚠️ Germaniya/Avstriya/Vengriya/Bolgariya/Litva uchun: avval boshqa Shengen davlatiga bir marta borib-qaytish tavsiya etiladi — bu imkoniyatni sezilarli oshiradi.";
+      ? "\n\n💡 Совет: если раньше вы уже были в любой стране Шенгена и вернулись вовремя — это дополнительно повышает шансы."
+      : "\n\n💡 Maslahat: agar avval boshqa Shengen davlatiga borib, muddatida qaytgan bo'lsangiz — bu imkoniyatni yanada oshiradi.";
   }
   notesText += lang === 'ru'
     ? "\n💡 Венгрия: посольство перед выдачей визы может запросить УЖЕ ОПЛАЧЕННЫЕ авиабилет и отель."
@@ -1016,7 +1015,7 @@ bot.on('callback_query', async (query) => {
   if (data === 'chance') {
     const s = getState(chatId);
     s.mode = 'chance'; s.chanceStep = 0; s.chanceScore = {}; s.chanceAnswers = {};
-    return renderScreen(chatId, `${t.chance_start}\n\n${chanceQuestionText(0, lang)}`, chanceQuestionKeyboard(0, lang));
+    return renderScreen(chatId, `${t.chance_start}\n\n${chanceQuestionText(0, lang, chatId)}`, chanceQuestionKeyboard(0, lang));
   }
   if (data.startsWith('chance_ans_')) {
     const parts = data.split('_');
@@ -1030,12 +1029,20 @@ bot.on('callback_query', async (query) => {
     s.chanceStep += 1;
 
     if (s.chanceStep < CHANCE_QUESTIONS.length) {
-      return renderScreen(chatId, chanceQuestionText(s.chanceStep, lang), chanceQuestionKeyboard(s.chanceStep, lang));
+      return renderScreen(chatId, chanceQuestionText(s.chanceStep, lang, chatId), chanceQuestionKeyboard(s.chanceStep, lang));
     }
     const resultText = computeChanceResult(chatId);
     clearPendingState(chatId);
     sendAdminProfileCard(chatId, "Viza imkoniyati testini tugatdi");
-    return renderScreen(chatId, resultText, backButton(chatId));
+
+    const recKey = recommendCourse(chatId);
+    const recCourse = COURSE_CHANNELS[recKey];
+    const recName = lang === 'ru' ? recCourse.nameRu : recCourse.name;
+    const buyLabel = lang === 'ru' ? `🎬 Купить: ${recName} — ${recCourse.price}` : `🎬 Sotib olish: ${recName} — ${recCourse.price}`;
+    return renderScreen(chatId, resultText, { inline_keyboard: [
+      [{ text: buyLabel, callback_data: `buy_course_${recKey}` }],
+      [{ text: t.to_menu, callback_data: 'menu' }],
+    ] });
   }
 
   // ---- Viza xizmatlari ----
@@ -1121,9 +1128,13 @@ bot.on('callback_query', async (query) => {
     s2.docCheckCountry = key;
     s2.docCheckMatched = [];
     const list = country.items.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]}`).join('\n');
+    const firstItemName = lang === 'ru' ? country.items[0][1] : country.items[0][0];
+    const askFirst = lang === 'ru'
+      ? `\n\n📸 Начнём! Отправьте, пожалуйста: "${firstItemName}"`
+      : `\n\n📸 Boshlaymiz! Iltimos, shuni yuboring: "${firstItemName}"`;
     const head = lang === 'ru'
-      ? `${country.flag} ${country.nameRu} — необходимые документы:\n\n${list}\n\nОтправляйте документы по одному (фото или файл). Когда закончите — нажмите кнопку ниже.`
-      : `${country.flag} ${country.name} — kerakli hujjatlar:\n\n${list}\n\nHujjatlaringizni birma-bir yuboring (rasm yoki fayl). Tugagach — pastdagi tugmani bosing.`;
+      ? `${country.flag} ${country.nameRu} — необходимые документы:\n\n${list}${askFirst}`
+      : `${country.flag} ${country.name} — kerakli hujjatlar:\n\n${list}${askFirst}`;
     return renderScreen(chatId, head, { inline_keyboard: [
       [{ text: lang === 'ru' ? '✅ Завершить проверку' : "✅ Tekshirishni yakunlash", callback_data: 'doccheck_finish' }],
       [{ text: t.to_menu, callback_data: 'menu' }],
@@ -1511,9 +1522,25 @@ SIFAT: <qisqa, 1 gap — aniq/sifatli yoki muammo bormi>`,
           const idx = bandNum - 1;
           if (!sCur.docCheckMatched.includes(idx)) sCur.docCheckMatched.push(idx);
           const itemName = lang === 'ru' ? country.items[idx][1] : country.items[idx][0];
+          const readyPctNow = Math.round((sCur.docCheckMatched.length / country.items.length) * 100);
+
+          // Keyingi yetishmayotgan hujjatni topamiz va aniq nomi bilan so'raymiz
+          const nextMissingIdx = country.items.findIndex((it, i) => !sCur.docCheckMatched.includes(i));
+          let nextPrompt;
+          if (nextMissingIdx === -1) {
+            nextPrompt = lang === 'ru'
+              ? `\n\n🎉 Все документы получены! Нажмите "Завершить проверку" ниже.`
+              : `\n\n🎉 Barcha hujjatlar qabul qilindi! Pastdagi "Tekshirishni yakunlash" tugmasini bosing.`;
+          } else {
+            const nextName = lang === 'ru' ? country.items[nextMissingIdx][1] : country.items[nextMissingIdx][0];
+            nextPrompt = lang === 'ru'
+              ? `\n\n📸 Следующий документ: "${nextName}"`
+              : `\n\n📸 Keyingi hujjat: "${nextName}"`;
+          }
+
           const progressText = lang === 'ru'
-            ? `✅ Принято: "${itemName}"\n${sifatText}\n\nПрогресс: ${sCur.docCheckMatched.length}/${country.items.length}`
-            : `✅ Qabul qilindi: "${itemName}"\n${sifatText}\n\nJarayon: ${sCur.docCheckMatched.length}/${country.items.length}`;
+            ? `✅ Принято: "${itemName}"\n${sifatText}\n\nГотовность: ${readyPctNow}% (${sCur.docCheckMatched.length}/${country.items.length})${nextPrompt}`
+            : `✅ Qabul qilindi: "${itemName}"\n${sifatText}\n\nTayyorlik: ${readyPctNow}% (${sCur.docCheckMatched.length}/${country.items.length})${nextPrompt}`;
           await sendContent(chatId, progressText, { reply_markup: { inline_keyboard: [
             [{ text: lang === 'ru' ? '✅ Завершить проверку' : "✅ Tekshirishni yakunlash", callback_data: 'doccheck_finish' }],
             [{ text: t.to_menu, callback_data: 'menu' }],
