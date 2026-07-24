@@ -52,6 +52,9 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
 const SITE_URL = 'https://vizaai.uz';
+const PAYMENT_CARD_NUMBER = '9860 1766 1886 7038'; // A.Sobirov
+const PAYMENT_CARD_HOLDER = 'A.Sobirov';
+const ADMIN_CONTACT_USERNAME = '@your_admin_username'; // TODO: haqiqiy admin username bilan almashtiring
 
 // ---------------------------------------------------------------
 // FOYDALANUVCHILAR BAZASI
@@ -247,7 +250,7 @@ const T = {
     partner_program: "🤝 Hamkor bo'lish",
     lang_set: "Til o'zbekchaga o'zgartirildi ✅",
     purchase_thanks: "Xaridni tanladingiz",
-    purchase_pay: "To'lov qilish uchun rekvizitlarga o'ting va skrinshotni shu yerga yuboring. Tasdiqlangach, kurs kanaliga havola yuboriladi.",
+    purchase_pay: "To'lov qilish uchun rekvizitlarga o'ting va skrinshotni shu yerga yuboring. Tasdiqlangach (5-60 daqiqa ichida), kurs kanaliga havola yuboriladi.",
     card_label: "Karta",
     fullname_label: "F.I.Sh",
     payment_confirmed: "✅ To'lovingiz tasdiqlandi!",
@@ -290,7 +293,7 @@ const T = {
     partner_program: "🤝 Стать партнёром",
     lang_set: "Язык изменён на русский ✅",
     purchase_thanks: "Вы выбрали покупку",
-    purchase_pay: "Перейдите к оплате по реквизитам и отправьте скриншот сюда. После подтверждения будет отправлена ссылка на канал курса.",
+    purchase_pay: "Перейдите к оплате по реквизитам и отправьте скриншот сюда. После подтверждения (в течение 5-60 минут) будет отправлена ссылка на канал курса.",
     card_label: "Карта",
     fullname_label: "Ф.И.О",
     payment_confirmed: "✅ Ваша оплата подтверждена!",
@@ -909,9 +912,17 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
   u.purchases.push({ key, name, price: course.price, status: 'pending', requestedAt: new Date().toISOString() });
   saveDB();
 
+  const cardBlock = lang === 'ru'
+    ? `💳 Карта (нажмите, чтобы скопировать):\n\`${PAYMENT_CARD_NUMBER}\`\n👤 ${PAYMENT_CARD_HOLDER}`
+    : `💳 Karta (bosib nusxalang):\n\`${PAYMENT_CARD_NUMBER}\`\n👤 ${PAYMENT_CARD_HOLDER}`;
+  const supportLine = lang === 'ru'
+    ? `\n\nВопросы? Пишите: ${ADMIN_CONTACT_USERNAME}`
+    : `\n\nSavollar bo'lsa: ${ADMIN_CONTACT_USERNAME}`;
+
   await renderScreen(chatId,
-    `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${desc}\n\n${t.purchase_pay}\n\n💳 ${t.card_label}: XXXX XXXX XXXX XXXX\n👤 ${t.fullname_label}`,
-    backButton(chatId)
+    `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${desc}\n\n${t.purchase_pay}\n\n${cardBlock}${supportLine}`,
+    backButton(chatId),
+    { parse_mode: 'Markdown' }
   );
 }
 
@@ -1481,6 +1492,25 @@ bot.on('message', async (msg) => {
   // (Avval "s.mode === 'doc'" talab qilinardi, lekin server qayta ishga tushganda
   // bu holat yo'qolib, foydalanuvchiga noto'g'ri xabar ko'rsatilishi mumkin edi.)
   const isImageDocument = msg.document && msg.document.mime_type && msg.document.mime_type.startsWith('image/');
+
+  // ---- TO'LOV CHEKI — agar kutilayotgan xarid bo'lsa, rasmni hujjat tahliliga
+  // yubormasdan, to'g'ridan-to'g'ri adminga (to'lov cheki sifatida) forward qilamiz ----
+  if ((msg.photo || msg.document) && pendingPurchases.has(String(chatId))) {
+    const purchase = pendingPurchases.get(String(chatId));
+    const confirmMsg = lang === 'ru'
+      ? `✅ Чек получен! Мы проверим оплату и в течение 5-60 минут пришлём ссылку на канал курса.`
+      : `✅ Chek qabul qilindi! To'lovni tekshirib, 5-60 daqiqa ichida kurs kanaliga havola yuboramiz.`;
+    await sendContent(chatId, confirmMsg, { reply_markup: backButton(chatId) });
+
+    if (ADMIN_CHAT_IDS.length) {
+      const caption = `💳 To'lov cheki keldi!\n\nKurs: ${purchase.name}\nXaridor: ${purchase.userLabel}\n\nTasdiqlash: /tasdiqla ${chatId}`;
+      ADMIN_CHAT_IDS.forEach(adminId => {
+        bot.forwardMessage(adminId, chatId, msg.message_id).catch(() => {});
+        bot.sendMessage(adminId, caption).catch(() => {});
+      });
+    }
+    return;
+  }
 
   // ---- Rasm bo'lmagan fayl (masalan PDF) — aniq ko'rsatma beramiz ----
   if (msg.document && !isImageDocument && s.mode !== 'registering' && s.mode !== 'lead_consult' && s.mode !== 'lead_partner') {
