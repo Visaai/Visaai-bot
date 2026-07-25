@@ -254,7 +254,7 @@ const T = {
     partner_program: "🤝 Hamkor bo'lish",
     lang_set: "Til o'zbekchaga o'zgartirildi ✅",
     purchase_thanks: "Xaridni tanladingiz",
-    purchase_pay: "To'lov qilish uchun rekvizitlarga o'ting va skrinshotni shu yerga yuboring.",
+    purchase_pay: "To'lov qilish uchun quyidagi rekvizitlardan foydalaning.",
     card_label: "Karta",
     fullname_label: "F.I.Sh",
     payment_confirmed: "✅ To'lovingiz tasdiqlandi!",
@@ -297,7 +297,7 @@ const T = {
     partner_program: "🤝 Стать партнёром",
     lang_set: "Язык изменён на русский ✅",
     purchase_thanks: "Вы выбрали покупку",
-    purchase_pay: "Перейдите к оплате по реквизитам и отправьте скриншот сюда.",
+    purchase_pay: "Для оплаты используйте реквизиты ниже.",
     card_label: "Карта",
     fullname_label: "Ф.И.О",
     payment_confirmed: "✅ Ваша оплата подтверждена!",
@@ -920,8 +920,8 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
     ? `💳 Карта (нажмите, чтобы скопировать):\n\`${PAYMENT_CARD_NUMBER}\`\n👤 ${PAYMENT_CARD_HOLDER}`
     : `💳 Karta (bosib nusxalang):\n\`${PAYMENT_CARD_NUMBER}\`\n👤 ${PAYMENT_CARD_HOLDER}`;
   const afterPayLine = lang === 'ru'
-    ? `\n\n✅ После оплаты отправьте сюда скриншот чека. Чтобы получить доступ к каналу курса, напишите админу: ${ADMIN_CONTACT_USERNAME_MD}`
-    : `\n\n✅ To'lovdan so'ng shu yerga chek skrinshotini yuboring. Video darslik kanaliga ruxsat olish uchun adminga murojaat qiling: ${ADMIN_CONTACT_USERNAME_MD}`;
+    ? `\n\n✅ После оплаты отправьте скриншот чека напрямую администратору, чтобы получить доступ к каналу курса: ${ADMIN_CONTACT_USERNAME_MD}`
+    : `\n\n✅ To'lovdan so'ng chek skrinshotini to'g'ridan-to'g'ri adminga yuboring — shunda video darslik kanaliga ruxsat olasiz: ${ADMIN_CONTACT_USERNAME_MD}`;
 
   await renderScreen(chatId,
     `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${desc}\n\n${t.purchase_pay}\n\n${cardBlock}${afterPayLine}`,
@@ -1385,7 +1385,7 @@ bot.onText(/\/qongiroq/, (msg) => {
   const lines = notBuyers.slice(0, 50).map(([id, u]) => {
     const status = u.purchases.length > 0 ? `so'radi lekin to'lamadi (${u.purchases.length})` : "hech nima so'ramadi";
     const note = u.callNote ? ` | izoh: ${u.callNote}` : '';
-    return `📱 ${u.phone || '—'} — ${u.name || '(ismsiz)'} — ${status}${note}\n   /izoh_${id} <matn> — qo'ng'iroqdan keyin izoh yozish`;
+    return `📱 ${u.phone || '—'} — ${u.name || '(ismsiz)'} — ${status}${note}\n   🆔 ID: ${id}\n   /tasdiqla ${id} — to'lovni tasdiqlash\n   /izoh_${id} <matn> — qo'ng'iroqdan keyin izoh yozish`;
   });
 
   const header = `☎️ Qo'ng'iroq qilinishi kerak (${notBuyers.length} kishi):\n\n`;
@@ -1497,22 +1497,13 @@ bot.on('message', async (msg) => {
   // bu holat yo'qolib, foydalanuvchiga noto'g'ri xabar ko'rsatilishi mumkin edi.)
   const isImageDocument = msg.document && msg.document.mime_type && msg.document.mime_type.startsWith('image/');
 
-  // ---- TO'LOV CHEKI — agar kutilayotgan xarid bo'lsa, rasmni hujjat tahliliga
-  // yubormasdan, to'g'ridan-to'g'ri adminga (to'lov cheki sifatida) forward qilamiz ----
+  // ---- TO'LOV CHEKI — bot hech narsani tahlil qilmaydi/tekshirmaydi,
+  // shunchaki foydalanuvchini to'g'ridan-to'g'ri adminga yuborishga yo'naltiradi ----
   if ((msg.photo || msg.document) && pendingPurchases.has(String(chatId))) {
-    const purchase = pendingPurchases.get(String(chatId));
     const confirmMsg = lang === 'ru'
-      ? `✅ Чек получен! Чтобы получить доступ к каналу курса, напишите админу: ${ADMIN_CONTACT_USERNAME}`
-      : `✅ Chek qabul qilindi! Video darslik kanaliga ruxsat olish uchun adminga murojaat qiling: ${ADMIN_CONTACT_USERNAME}`;
+      ? `Чтобы получить доступ к каналу курса, отправьте скриншот чека напрямую администратору: ${ADMIN_CONTACT_USERNAME}`
+      : `Video darslik kanaliga ruxsat olish uchun, chek skrinshotini to'g'ridan-to'g'ri adminga yuboring: ${ADMIN_CONTACT_USERNAME}`;
     await sendContent(chatId, confirmMsg, { reply_markup: backButton(chatId) });
-
-    if (ADMIN_CHAT_IDS.length) {
-      const caption = `💳 To'lov cheki keldi!\n\nKurs: ${purchase.name}\nXaridor: ${purchase.userLabel}\n\nTasdiqlash: /tasdiqla ${chatId}`;
-      ADMIN_CHAT_IDS.forEach(adminId => {
-        bot.forwardMessage(adminId, chatId, msg.message_id).catch(() => {});
-        bot.sendMessage(adminId, caption).catch(() => {});
-      });
-    }
     return;
   }
 
