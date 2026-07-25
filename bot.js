@@ -440,16 +440,16 @@ const SINGLE_COURSE_DESC = {
 };
 
 const COURSE_CHANNELS = {
-  kurs_ispaniya:   { name: 'Ispaniya vizasi: to‘liq kurs',       nameRu: 'Виза Испании: полный курс',       price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_ISPANIYA' },
-  kurs_france:     { name: 'Fransiya vizasi: to‘liq kurs',       nameRu: 'Виза Франции: полный курс',       price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_FRANCE' },
-  kurs_germany:    { name: 'Germaniya vizasi: to‘liq kurs',      nameRu: 'Виза Германии: полный курс',      price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_GERMANY' },
-  kurs_combo:      { name: 'Kombo: Litva/Belgiya/Avstriya/Bolgariya/Lyuksemburg/Niderlandiya', nameRu: 'Комбо: Литва/Бельгия/Австрия/Болгария/Люксембург/Нидерланды', price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_COMBO' },
-  kurs_yaponiya:   { name: 'Yaponiya turistik vizasi',          nameRu: 'Туристическая виза Японии',       price: '149 000 so‘m', link: 'HAVOLA_BU_YERGA_YAPONIYA' },
-  kurs_aqsh:       { name: 'AQSH B1/B2: anketa va suhbat',      nameRu: 'США B1/B2: анкета и собеседование', price: '299 000 so‘m', link: 'HAVOLA_BU_YERGA_AQSH' },
-  kurs_uk:         { name: 'Buyuk Britaniya visitor vizasi',    nameRu: 'Виза посетителя Великобритании',  price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_UK' },
-  kurs_hongkong:   { name: 'Hong Kong vizasi',                  nameRu: 'Виза Гонконга',                   price: '59 000 so‘m',  link: 'HAVOLA_BU_YERGA_HONGKONG' },
-  kurs_avstraliya: { name: 'Avstraliya visitor vizasi',         nameRu: 'Виза посетителя Австралии',       price: '299 000 so‘m', link: 'HAVOLA_BU_YERGA_AVSTRALIYA' },
-  kurs_kanada:     { name: 'Kanada visitor vizasi',             nameRu: 'Виза посетителя Канады',          price: '299 000 so‘m', link: 'HAVOLA_BU_YERGA_KANADA' },
+  kurs_ispaniya:   { name: 'Ispaniya vizasi: to‘liq kurs',       nameRu: 'Виза Испании: полный курс',       price: '249 000 so‘m', link: 'HAVOLA_BU_YERGA_ISPANIYA' },
+  kurs_france:     { name: 'Fransiya vizasi: to‘liq kurs',       nameRu: 'Виза Франции: полный курс',       price: '249 000 so‘m', link: 'HAVOLA_BU_YERGA_FRANCE' },
+  kurs_germany:    { name: 'Germaniya vizasi: to‘liq kurs',      nameRu: 'Виза Германии: полный курс',      price: '249 000 so‘m', link: 'HAVOLA_BU_YERGA_GERMANY' },
+  kurs_combo:      { name: 'Kombo: Litva/Belgiya/Avstriya/Bolgariya/Lyuksemburg/Niderlandiya', nameRu: 'Комбо: Литва/Бельгия/Австрия/Болгария/Люксембург/Нидерланды', price: '249 000 so‘m', link: 'HAVOLA_BU_YERGA_COMBO' },
+  kurs_yaponiya:   { name: 'Yaponiya turistik vizasi',          nameRu: 'Туристическая виза Японии',       price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_YAPONIYA' },
+  kurs_aqsh:       { name: 'AQSH B1/B2: anketa va suhbat',      nameRu: 'США B1/B2: анкета и собеседование', price: '349 000 so‘m', link: 'HAVOLA_BU_YERGA_AQSH' },
+  kurs_uk:         { name: 'Buyuk Britaniya visitor vizasi',    nameRu: 'Виза посетителя Великобритании',  price: '249 000 so‘m', link: 'HAVOLA_BU_YERGA_UK' },
+  kurs_hongkong:   { name: 'Hong Kong vizasi',                  nameRu: 'Виза Гонконга',                   price: '89 000 so‘m',  link: 'HAVOLA_BU_YERGA_HONGKONG' },
+  kurs_avstraliya: { name: 'Avstraliya visitor vizasi',         nameRu: 'Виза посетителя Австралии',       price: '349 000 so‘m', link: 'HAVOLA_BU_YERGA_AVSTRALIYA' },
+  kurs_kanada:     { name: 'Kanada visitor vizasi',             nameRu: 'Виза посетителя Канады',          price: '349 000 so‘m', link: 'HAVOLA_BU_YERGA_KANADA' },
   kurs_barchasi:   {
     name: 'Barcha video darsliklar paketi', nameRu: 'Пакет всех видеокурсов',
     price: '999 000 so‘m', link: 'HAVOLA_BU_YERGA_BARCHASI',
@@ -510,7 +510,7 @@ VIZAAI HAQIDA:
   Ispaniya (199 000), Fransiya (199 000), Germaniya (199 000), Kombo: Litva/Belgiya/Avstriya/Bolgariya/Lyuksemburg/Niderlandiya (199 000),
   Yaponiya (149 000), AQSH B1/B2 (299 000), Buyuk Britaniya (199 000),
   Hong Kong (59 000), Avstraliya (299 000), Kanada (299 000),
-  yoki BARCHA KURSLAR PAKETI — 999 000 so'm (1 700 000 o'rniga, ~40% chegirma).
+  yoki BARCHA KURSLAR PAKETI — 999 000 so'm (2 580 000 o'rniga, ~60% chegirma).
 - Tur paketlar: Turkiya ($599), Vyetnam ($699), Yevropa ($1799), Yaponiya ($1250).
 - Premium konsultatsiya — hamkor mutaxassis bilan shaxsiy maslahat.
 ${historyBlock}
