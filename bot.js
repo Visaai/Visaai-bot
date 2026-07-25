@@ -55,6 +55,10 @@ const SITE_URL = 'https://vizaai.uz';
 const PAYMENT_CARD_NUMBER = '9860 1766 1886 7038'; // A.Sobirov
 const PAYMENT_CARD_HOLDER = 'A.Sobirov';
 const ADMIN_CONTACT_USERNAME = '@A_Sobirov39';
+// Telegram Markdown rejimida "_" belgisi qiya shrift (italic) belgisi hisoblanadi —
+// juft bo'lmasa butun xabarni buzadi. Shu sabab, Markdown ishlatiladigan joylarda
+// escaped (qochirilgan) versiyasidan foydalanamiz.
+const ADMIN_CONTACT_USERNAME_MD = ADMIN_CONTACT_USERNAME.replace(/_/g, '\\_');
 
 // ---------------------------------------------------------------
 // FOYDALANUVCHILAR BAZASI
@@ -916,8 +920,8 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
     ? `💳 Карта (нажмите, чтобы скопировать):\n\`${PAYMENT_CARD_NUMBER}\`\n👤 ${PAYMENT_CARD_HOLDER}`
     : `💳 Karta (bosib nusxalang):\n\`${PAYMENT_CARD_NUMBER}\`\n👤 ${PAYMENT_CARD_HOLDER}`;
   const afterPayLine = lang === 'ru'
-    ? `\n\n✅ После оплаты отправьте сюда скриншот чека. Чтобы получить доступ к каналу курса, напишите админу: ${ADMIN_CONTACT_USERNAME}`
-    : `\n\n✅ To'lovdan so'ng shu yerga chek skrinshotini yuboring. Video darslik kanaliga ruxsat olish uchun adminga murojaat qiling: ${ADMIN_CONTACT_USERNAME}`;
+    ? `\n\n✅ После оплаты отправьте сюда скриншот чека. Чтобы получить доступ к каналу курса, напишите админу: ${ADMIN_CONTACT_USERNAME_MD}`
+    : `\n\n✅ To'lovdan so'ng shu yerga chek skrinshotini yuboring. Video darslik kanaliga ruxsat olish uchun adminga murojaat qiling: ${ADMIN_CONTACT_USERNAME_MD}`;
 
   await renderScreen(chatId,
     `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${desc}\n\n${t.purchase_pay}\n\n${cardBlock}${afterPayLine}`,
