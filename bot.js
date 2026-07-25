@@ -54,7 +54,7 @@ const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 const SITE_URL = 'https://vizaai.uz';
 const PAYMENT_CARD_NUMBER = '9860 1766 1886 7038'; // A.Sobirov
 const PAYMENT_CARD_HOLDER = 'A.Sobirov';
-const ADMIN_CONTACT_USERNAME = '@your_admin_username'; // TODO: haqiqiy admin username bilan almashtiring
+const ADMIN_CONTACT_USERNAME = '@A_Sobirov39';
 
 // ---------------------------------------------------------------
 // FOYDALANUVCHILAR BAZASI
@@ -250,7 +250,7 @@ const T = {
     partner_program: "🤝 Hamkor bo'lish",
     lang_set: "Til o'zbekchaga o'zgartirildi ✅",
     purchase_thanks: "Xaridni tanladingiz",
-    purchase_pay: "To'lov qilish uchun rekvizitlarga o'ting va skrinshotni shu yerga yuboring. Tasdiqlangach (5-60 daqiqa ichida), kurs kanaliga havola yuboriladi.",
+    purchase_pay: "To'lov qilish uchun rekvizitlarga o'ting va skrinshotni shu yerga yuboring.",
     card_label: "Karta",
     fullname_label: "F.I.Sh",
     payment_confirmed: "✅ To'lovingiz tasdiqlandi!",
@@ -293,7 +293,7 @@ const T = {
     partner_program: "🤝 Стать партнёром",
     lang_set: "Язык изменён на русский ✅",
     purchase_thanks: "Вы выбрали покупку",
-    purchase_pay: "Перейдите к оплате по реквизитам и отправьте скриншот сюда. После подтверждения (в течение 5-60 минут) будет отправлена ссылка на канал курса.",
+    purchase_pay: "Перейдите к оплате по реквизитам и отправьте скриншот сюда.",
     card_label: "Карта",
     fullname_label: "Ф.И.О",
     payment_confirmed: "✅ Ваша оплата подтверждена!",
@@ -915,12 +915,12 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
   const cardBlock = lang === 'ru'
     ? `💳 Карта (нажмите, чтобы скопировать):\n\`${PAYMENT_CARD_NUMBER}\`\n👤 ${PAYMENT_CARD_HOLDER}`
     : `💳 Karta (bosib nusxalang):\n\`${PAYMENT_CARD_NUMBER}\`\n👤 ${PAYMENT_CARD_HOLDER}`;
-  const supportLine = lang === 'ru'
-    ? `\n\nВопросы? Пишите: ${ADMIN_CONTACT_USERNAME}`
-    : `\n\nSavollar bo'lsa: ${ADMIN_CONTACT_USERNAME}`;
+  const afterPayLine = lang === 'ru'
+    ? `\n\n✅ После оплаты отправьте сюда скриншот чека. Чтобы получить доступ к каналу курса, напишите админу: ${ADMIN_CONTACT_USERNAME}`
+    : `\n\n✅ To'lovdan so'ng shu yerga chek skrinshotini yuboring. Video darslik kanaliga ruxsat olish uchun adminga murojaat qiling: ${ADMIN_CONTACT_USERNAME}`;
 
   await renderScreen(chatId,
-    `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${desc}\n\n${t.purchase_pay}\n\n${cardBlock}${supportLine}`,
+    `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${desc}\n\n${t.purchase_pay}\n\n${cardBlock}${afterPayLine}`,
     backButton(chatId),
     { parse_mode: 'Markdown' }
   );
@@ -1498,8 +1498,8 @@ bot.on('message', async (msg) => {
   if ((msg.photo || msg.document) && pendingPurchases.has(String(chatId))) {
     const purchase = pendingPurchases.get(String(chatId));
     const confirmMsg = lang === 'ru'
-      ? `✅ Чек получен! Мы проверим оплату и в течение 5-60 минут пришлём ссылку на канал курса.`
-      : `✅ Chek qabul qilindi! To'lovni tekshirib, 5-60 daqiqa ichida kurs kanaliga havola yuboramiz.`;
+      ? `✅ Чек получен! Чтобы получить доступ к каналу курса, напишите админу: ${ADMIN_CONTACT_USERNAME}`
+      : `✅ Chek qabul qilindi! Video darslik kanaliga ruxsat olish uchun adminga murojaat qiling: ${ADMIN_CONTACT_USERNAME}`;
     await sendContent(chatId, confirmMsg, { reply_markup: backButton(chatId) });
 
     if (ADMIN_CHAT_IDS.length) {
