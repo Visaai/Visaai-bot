@@ -759,11 +759,11 @@ function calculateCountryScores(chatId) {
   const hasGoodJob = employmentIdx === 0 && (incomeIdx === 0 || incomeIdx === 1);
 
   const results = {};
-  results.hongkong = 100; // Hong Kong deyarli hech qachon rad etmaydi
-  results.japan = hasGoodJob ? 95 : clamp(basePct + 15, 40, 92);
+  results.hongkong = clamp(basePct + 32, 55, 96); // deyarli hamma vaqt yuqori, lekin endi mutlaq 100% emas
+  results.japan = hasGoodJob ? 90 : clamp(basePct + 10, 50, 87);
 
-  // Barcha Shengen davlatlari — bitta, yuqoriroq va optimistik foiz
-  results.schengen = clamp(basePct + 25 + (visitedSchengen ? 10 : 0), 50, 98);
+  // Barcha Shengen davlatlari — yuqori, lekin avvalgidan biroz pastroq
+  results.schengen = clamp(basePct + 18 + (visitedSchengen ? 8 : 0), 50, 95);
 
   // AQSH/UK/Kanada/Avstraliya — bir xil, optimistik baholash
   const standardBoosted = clamp(basePct + 18, 45, 95);
@@ -867,9 +867,18 @@ function computeChanceResult(chatId) {
   const courseKey = recommendCourse(chatId);
   const course = COURSE_CHANNELS[courseKey];
   const courseName = lang === 'ru' ? course.nameRu : course.name;
-  const courseText = lang === 'ru'
-    ? `\n\n🎬 Рекомендуем: "${courseName}" — ${course.price}. Этот курс даёт подготовку именно под вашу ситуацию. Купить можно в разделе "Видеокурсы".`
-    : `\n\n🎬 Sizga tavsiya etamiz: "${courseName}" — ${course.price}. Bu kurs aynan sizning holatingizga mos tayyorgarlikni beradi. "Video darsliklar" bo'limidan sotib olishingiz mumkin.`;
+  const bundleName = lang === 'ru' ? COURSE_CHANNELS.kurs_barchasi.nameRu : COURSE_CHANNELS.kurs_barchasi.name;
+  const isBundle = courseKey === 'kurs_barchasi';
+  const strengthenLine = lang === 'ru'
+    ? `\n\n💪 Пройдя курс и укрепив слабые стороны, вы можете довести свою визовую историю практически до 100%!`
+    : `\n\n💪 Kursni o'tab, zaif tomonlaringizni mustahkamlasangiz, viza tarixingizni deyarli 100%gacha kuchaytirishingiz mumkin!`;
+  const courseText = isBundle
+    ? (lang === 'ru'
+        ? `\n\n🎬 Рекомендуем: "${courseName}" — ${course.price}. Это сразу готовит вас по всем направлениям.${strengthenLine}`
+        : `\n\n🎬 Sizga tavsiya etamiz: "${courseName}" — ${course.price}. Bu sizni barcha yo'nalishlarga bir yo'la tayyorlaydi.${strengthenLine}`)
+    : (lang === 'ru'
+        ? `\n\n🎬 Рекомендуем: "${courseName}" — ${course.price}. Этот курс даёт подготовку именно под вашу ситуацию. Или возьмите "${bundleName}" — ${COURSE_CHANNELS.kurs_barchasi.price} и будьте готовы сразу ко всем направлениям.${strengthenLine}`
+        : `\n\n🎬 Sizga tavsiya etamiz: "${courseName}" — ${course.price}. Bu kurs aynan sizning holatingizga mos tayyorgarlikni beradi. Yoki "${bundleName}" — ${COURSE_CHANNELS.kurs_barchasi.price} olib, barcha yo'nalishlarga bir yo'la tayyor bo'ling.${strengthenLine}`);
 
   return `📊 ${t.chance_result_head}: ${pct}%\n\n${verdict}${strongText}${weakText}\n\n${countryLabel}\n${countryLines}${notesText}\n\n${t.chance_disclaimer}${courseText}`;
 }
