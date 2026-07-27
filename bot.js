@@ -235,6 +235,7 @@ const T = {
     menu_tours: "✈️ Tur paketlar",
     menu_ai: "🤖 AI yordamchi",
     menu_other: "🚩 Boshqa imkoniyatlar",
+    menu_admin: "☎️ Admin bilan bog'lanish",
     menu_lang: "🌐 Til / Язык",
     menu_featured: "🔥 Super taklif (-40%)",
     back: "⬅️ Orqaga",
@@ -258,7 +259,7 @@ const T = {
     card_label: "Karta",
     fullname_label: "F.I.Sh",
     payment_confirmed: "✅ To'lovingiz tasdiqlandi!",
-    join_channel: "kursi kanaliga qo'shiling",
+    join_channel: "kursi uchun admin sizni tez orada kanalga qo'shadi",
     thanks: "Xaridingiz uchun rahmat! 🎉",
     payment_confirmed_tour: "bo'yicha to'lovingiz tasdiqlandi! Tez orada operator bog'lanadi.",
     tour_request_ok: "So'rovingiz qabul qilindi! Tur agentligi hamkorimiz siz bilan tez orada bog'lanadi.",
@@ -278,6 +279,7 @@ const T = {
     menu_tours: "✈️ Турпакеты",
     menu_ai: "🤖 AI-помощник",
     menu_other: "🚩 Другие возможности",
+    menu_admin: "☎️ Связаться с админом",
     menu_lang: "🌐 Til / Язык",
     menu_featured: "🔥 Супер-предложение (-40%)",
     back: "⬅️ Назад",
@@ -301,7 +303,7 @@ const T = {
     card_label: "Карта",
     fullname_label: "Ф.И.О",
     payment_confirmed: "✅ Ваша оплата подтверждена!",
-    join_channel: "— присоединяйтесь к каналу курса",
+    join_channel: "— админ скоро добавит вас в канал курса",
     thanks: "Спасибо за покупку! 🎉",
     payment_confirmed_tour: "оплата подтверждена! Скоро с вами свяжется оператор.",
     tour_request_ok: "Заявка принята! Наш партнёр-турагентство скоро свяжется с вами.",
@@ -877,6 +879,7 @@ function computeChanceResult(chatId) {
 // ---------------------------------------------------------------
 function mainMenuKeyboard(chatId) {
   const t = T[getLang(chatId)];
+  const adminUrl = `https://t.me/${ADMIN_CONTACT_USERNAME.replace('@', '')}`;
   return {
     inline_keyboard: [
       [{ text: t.menu_featured, callback_data: 'buy_course_kurs_barchasi' }],
@@ -884,12 +887,19 @@ function mainMenuKeyboard(chatId) {
       [{ text: t.menu_services, callback_data: 'services' }, { text: t.menu_docs, callback_data: 'docs' }],
       [{ text: t.menu_courses, callback_data: 'courses' }, { text: t.menu_tours, callback_data: 'tours' }],
       [{ text: t.menu_ai, callback_data: 'ai' }, { text: t.menu_other, callback_data: 'other' }],
+      [{ text: t.menu_admin, url: adminUrl }],
       [{ text: t.menu_lang, callback_data: 'lang' }],
     ],
   };
 }
-function backButton(chatId) {
+function backButton(chatId, backTarget) {
   const t = T[getLang(chatId)];
+  if (backTarget) {
+    return { inline_keyboard: [
+      [{ text: t.back, callback_data: backTarget }],
+      [{ text: t.to_menu, callback_data: 'menu' }],
+    ] };
+  }
   return { inline_keyboard: [[{ text: t.to_menu, callback_data: 'menu' }]] };
 }
 async function sendMainMenu(chatId) {
@@ -925,7 +935,7 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
 
   await renderScreen(chatId,
     `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${desc}\n\n${t.purchase_pay}\n\n${cardBlock}${afterPayLine}`,
-    backButton(chatId),
+    backButton(chatId, 'courses'),
     { parse_mode: 'Markdown' }
   );
 }
@@ -1123,7 +1133,7 @@ bot.on('callback_query', async (query) => {
     u.interestedIn = `${c.name} (sayohat viza)`;
     saveDB();
     const list = c.items.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]} — ${lang === 'ru' ? it[3] : it[2]}`).join('\n');
-    return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
+    return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId, 'svc_travel'));
   }
   if (data.startsWith('chk_work_')) {
     const c = WORK_COUNTRIES.find(x => x.key === data.replace('chk_work_', ''));
@@ -1132,7 +1142,7 @@ bot.on('callback_query', async (query) => {
     u.interestedIn = `${c.name} (ishchi viza)`;
     saveDB();
     const list = WORK_CHECKLIST.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]} — ${lang === 'ru' ? it[3] : it[2]}`).join('\n');
-    return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
+    return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId, 'svc_work'));
   }
   if (data.startsWith('chk_student_')) {
     const c = STUDENT_COUNTRIES.find(x => x.key === data.replace('chk_student_', ''));
@@ -1141,7 +1151,7 @@ bot.on('callback_query', async (query) => {
     u.interestedIn = `${c.name} (talaba vizasi)`;
     saveDB();
     const list = STUDENT_CHECKLIST.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]} — ${lang === 'ru' ? it[3] : it[2]}`).join('\n');
-    return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId));
+    return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId, 'svc_student'));
   }
   if (data === 'svc_faq') {
     const rows = FAQ_DATA.map((f, i) => ([{ text: lang === 'ru' ? f[2] : f[0], callback_data: `faq_${i}` }]));
@@ -1180,6 +1190,7 @@ bot.on('callback_query', async (query) => {
       : `${country.flag} ${country.name} — kerakli hujjatlar:\n\n${list}${askFirst}`;
     return renderScreen(chatId, head, { inline_keyboard: [
       [{ text: lang === 'ru' ? '✅ Завершить проверку' : "✅ Tekshirishni yakunlash", callback_data: 'doccheck_finish' }],
+      [{ text: t.back, callback_data: 'docs' }],
       [{ text: t.to_menu, callback_data: 'menu' }],
     ] });
   }
@@ -1210,7 +1221,7 @@ bot.on('callback_query', async (query) => {
     saveDB();
 
     clearPendingState(chatId);
-    return renderScreen(chatId, head, backButton(chatId));
+    return renderScreen(chatId, head, backButton(chatId, 'docs'));
   }
 
   // ---- Video darsliklar ----
@@ -1245,7 +1256,7 @@ bot.on('callback_query', async (query) => {
     u.purchases.push({ key, name, price: tour.price, status: 'pending', requestedAt: new Date().toISOString() });
     saveDB();
 
-    await renderScreen(chatId, `"${name}" — ${tour.price} 🧳\n\n${t.tour_request_ok}`, backButton(chatId));
+    await renderScreen(chatId, `"${name}" — ${tour.price} 🧳\n\n${t.tour_request_ok}`, backButton(chatId, 'tours'));
     u.interestedIn = `${name} (tur paket)`;
     saveDB();
     return;
@@ -1308,8 +1319,7 @@ bot.onText(/\/tasdiqla (.+)/, async (msg, match) => {
   const tt = T[targetLang];
 
   if (purchase.kind === 'course') {
-    const course = COURSE_CHANNELS[purchase.key];
-    await bot.sendMessage(targetId, `${tt.payment_confirmed}\n\n"${purchase.name}" ${tt.join_channel}:\n${course.link}\n\n${tt.thanks}`);
+    await bot.sendMessage(targetId, `${tt.payment_confirmed}\n\n"${purchase.name}" ${tt.join_channel}\n\n${tt.thanks}`);
   } else {
     await bot.sendMessage(targetId, `✅ "${purchase.name}" — ${tt.payment_confirmed_tour}`);
   }
