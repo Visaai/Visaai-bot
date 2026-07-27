@@ -227,7 +227,7 @@ function getLang(chatId) { return userLang.get(chatId) || 'uz'; }
 
 const T = {
   uz: {
-    welcome: "Assalomu alaykum! VizaAI botiga xush kelibsiz 👋\n\nBu AI botda siz nimalar qila olasiz:\n\n✅ Viza olish imkoniyati — AI orqali\n✅ AI bilan viza qilish\n✅ Barcha kerakli hujjatlarni topasiz\n✅ Sayohatga kerakli hamma layf haklarni olasiz\n\n🔥 SUPER TAKLIF: 999 000 so'mga — barcha viza kurslari + sayohatda arzon qiladigan layf haklar to'plami!\n\nBoshlash uchun kerakli tugmani bosing:",
+    welcome: "Assalomu alaykum! VizaAI botiga xush kelibsiz 👋\n\nBu AI botda siz nimalar qila olasiz:\n\n✅ Viza olish imkoniyatingizni AI orqali aniqlash\n✅ Hujjatlaringizni AI yordamida tekshirish\n✅ Har bir davlat uchun kerakli hujjatlar ro'yxatini topish\n✅ Sayohatda foydali bo'ladigan barcha lifehacklarni olish\n\n🔥 SUPER TAKLIF: 999 000 so'mga — barcha viza kurslari + sayohatda arzon qiladigan lifehacklar to'plami!\n\nBoshlash uchun kerakli tugmani bosing:",
     menu_chance: "🧠 Viza imkoniyati testi",
     menu_services: "🗂️ Viza xizmatlari",
     menu_docs: "📸 Hujjatni AI tekshirish",
@@ -237,7 +237,7 @@ const T = {
     menu_other: "🚩 Boshqa imkoniyatlar",
     menu_admin: "☎️ Admin bilan bog'lanish",
     menu_lang: "🌐 Til / Язык",
-    menu_featured: "🔥 Super taklif (-40%)",
+    menu_featured: "🔥 Super taklif (-61%)",
     back: "⬅️ Orqaga",
     to_menu: "🏠 Bosh menyu",
     ask_ai_prompt: "Savolingizni yozing — AI javob beradi.",
@@ -271,7 +271,7 @@ const T = {
     chance_cta: "\n\n💡 Profilingizni kuchaytirish uchun mos video kursimiz bor — \"Video darsliklar\" bo'limini ko'ring!",
   },
   ru: {
-    welcome: "Здравствуйте! Добро пожаловать в бот VizaAI 👋\n\nЧто вы можете делать в этом AI-боте:\n\n✅ Проверить шансы на визу — через AI\n✅ Оформить визу с помощью AI\n✅ Найти все необходимые документы\n✅ Получить все лайфхаки для путешествий\n\n🔥 СУПЕР-ПРЕДЛОЖЕНИЕ: за 999 000 сум — все визовые курсы + сборник лайфхаков для экономии в путешествиях!\n\nНажмите нужную кнопку, чтобы начать:",
+    welcome: "Здравствуйте! Добро пожаловать в бот VizaAI 👋\n\nЧто вы можете делать в этом AI-боте:\n\n✅ Узнать свои шансы на визу через AI\n✅ Проверить документы с помощью AI\n✅ Найти список нужных документов по каждой стране\n✅ Получить все полезные лайфхаки для путешествий\n\n🔥 СУПЕР-ПРЕДЛОЖЕНИЕ: за 999 000 сум — все визовые курсы + сборник лайфхаков для экономии в путешествиях!\n\nНажмите нужную кнопку, чтобы начать:",
     menu_chance: "🧠 Тест визовых шансов",
     menu_services: "🗂️ Визовые услуги",
     menu_docs: "📸 Проверка документа AI",
@@ -281,7 +281,7 @@ const T = {
     menu_other: "🚩 Другие возможности",
     menu_admin: "☎️ Связаться с админом",
     menu_lang: "🌐 Til / Язык",
-    menu_featured: "🔥 Супер-предложение (-40%)",
+    menu_featured: "🔥 Супер-предложение (-61%)",
     back: "⬅️ Назад",
     to_menu: "🏠 Главное меню",
     ask_ai_prompt: "Напишите ваш вопрос — AI ответит.",
@@ -453,7 +453,7 @@ const COURSE_CHANNELS = {
   kurs_ispaniya:   { name: 'Ispaniya vizasi: to‘liq kurs',       nameRu: 'Виза Испании: полный курс',       price: '249 000 so‘m', link: 'HAVOLA_BU_YERGA_ISPANIYA' },
   kurs_france:     { name: 'Fransiya vizasi: to‘liq kurs',       nameRu: 'Виза Франции: полный курс',       price: '249 000 so‘m', link: 'HAVOLA_BU_YERGA_FRANCE' },
   kurs_germany:    { name: 'Germaniya vizasi: to‘liq kurs',      nameRu: 'Виза Германии: полный курс',      price: '249 000 so‘m', link: 'HAVOLA_BU_YERGA_GERMANY' },
-  kurs_combo:      { name: 'Kombo: Litva/Belgiya/Avstriya/Bolgariya/Lyuksemburg/Niderlandiya', nameRu: 'Комбо: Литва/Бельгия/Австрия/Болгария/Люксембург/Нидерланды', price: '249 000 so‘m', link: 'HAVOLA_BU_YERGA_COMBO' },
+  kurs_combo:      { name: 'Kombo: Litva/Belgiya/Avstriya/Bolgariya/Lyuksemburg/Niderlandiya', nameRu: 'Комбо: Литва/Бельгия/Австрия/Болгария/Люксембург/Нидерланды', shortName: 'Kombo (Litva/Belgiya va h.k.)', shortNameRu: 'Комбо (Литва/Бельгия и др.)', price: '249 000 so‘m', link: 'HAVOLA_BU_YERGA_COMBO' },
   kurs_yaponiya:   { name: 'Yaponiya turistik vizasi',          nameRu: 'Туристическая виза Японии',       price: '199 000 so‘m', link: 'HAVOLA_BU_YERGA_YAPONIYA' },
   kurs_aqsh:       { name: 'AQSH B1/B2: anketa va suhbat',      nameRu: 'США B1/B2: анкета и собеседование', price: '349 000 so‘m', link: 'HAVOLA_BU_YERGA_AQSH' },
   kurs_uk:         { name: 'Buyuk Britaniya visitor vizasi',    nameRu: 'Виза посетителя Великобритании',  price: '249 000 so‘m', link: 'HAVOLA_BU_YERGA_UK' },
@@ -975,9 +975,10 @@ async function handleStartPayload(chatId, payload, fromUser) {
   if (payload === 'courses') {
     const lang = getLang(chatId);
     const t = T[lang];
-    const rows = Object.entries(COURSE_CHANNELS).map(([key, c]) => (
-      [{ text: `${lang === 'ru' ? c.nameRu : c.name} — ${c.price}`, callback_data: `buy_course_${key}` }]
-    ));
+    const rows = Object.entries(COURSE_CHANNELS).map(([key, c]) => {
+      const label = lang === 'ru' ? (c.shortNameRu || c.nameRu) : (c.shortName || c.name);
+      return [{ text: `${label} — ${c.price}`, callback_data: `buy_course_${key}` }];
+    });
     rows.push([{ text: t.to_menu, callback_data: 'menu' }]);
     const head = `${t.courses_head}\n\n${SINGLE_COURSE_DESC[lang]}\n\n🔥 ${lang === 'ru' ? 'Пакет всех курсов' : 'Barcha kurslar paketi'} (999 000):\n${lang === 'ru' ? COURSE_CHANNELS.kurs_barchasi.descRu : COURSE_CHANNELS.kurs_barchasi.desc}`;
     return renderScreen(chatId, head, { inline_keyboard: rows });
@@ -1185,7 +1186,7 @@ bot.on('callback_query', async (query) => {
     const item = FAQ_DATA[+data.replace('faq_', '')];
     if (!item) return;
     const q = lang === 'ru' ? item[2] : item[0], a = lang === 'ru' ? item[3] : item[1];
-    return renderScreen(chatId, `❓ ${q}\n\n${a}`, { inline_keyboard: [[{ text: t.back, callback_data: 'svc_faq' }]] });
+    return renderScreen(chatId, `❓ ${q}\n\n${a}`, backButton(chatId, 'svc_faq'));
   }
 
   // ---- Hujjatni AI tekshirish ----
@@ -1249,9 +1250,10 @@ bot.on('callback_query', async (query) => {
 
   // ---- Video darsliklar ----
   if (data === 'courses') {
-    const rows = Object.entries(COURSE_CHANNELS).map(([key, c]) => (
-      [{ text: `${lang === 'ru' ? c.nameRu : c.name} — ${c.price}`, callback_data: `buy_course_${key}` }]
-    ));
+    const rows = Object.entries(COURSE_CHANNELS).map(([key, c]) => {
+      const label = lang === 'ru' ? (c.shortNameRu || c.nameRu) : (c.shortName || c.name);
+      return [{ text: `${label} — ${c.price}`, callback_data: `buy_course_${key}` }];
+    });
     rows.push([{ text: t.to_menu, callback_data: 'menu' }]);
     const head = `${t.courses_head}\n\n${SINGLE_COURSE_DESC[lang]}\n\n🔥 ${lang === 'ru' ? 'Пакет всех курсов' : 'Barcha kurslar paketi'} (999 000):\n${lang === 'ru' ? COURSE_CHANNELS.kurs_barchasi.descRu : COURSE_CHANNELS.kurs_barchasi.desc}`;
     return renderScreen(chatId, head, { inline_keyboard: rows });
