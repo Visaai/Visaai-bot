@@ -434,10 +434,14 @@ const FAQ_DATA = [
    "Сколько времени занимает услуга?", "Чек-листом и AI-помощником можно пользоваться сразу. Премиум-консультация обычно начинается в течение 1 рабочего дня после заявки."],
   ["Hujjatlarim xavfsizmi?", "Ha. Hujjatlaringiz faqat sizning arizangizni tayyorlashda ishlatiladi va roziligingizsiz uchinchi shaxslarga berilmaydi.",
    "Безопасны ли мои документы?", "Да. Ваши документы используются только для подготовки вашей заявки и не передаются третьим лицам без вашего согласия."],
-  ["Qaysi davlatlar bilan ishlaysiz?", "Yaponiya, Shengen, AQSH, Buyuk Britaniya va Braziliya uchun to'liq tayyor yo'riqnomalar bor. Boshqa istalgan davlat bo'yicha AI yordamchi orqali maslahat olishingiz mumkin.",
-   "С какими странами вы работаете?", "Есть готовые полные инструкции по Японии, Шенгену, США, Великобритании и Бразилии. По любой другой стране можно получить совет через AI-помощника."],
-  ["To'lovni qanday amalga oshiraman?", "Kursni tanlaganingizdan so'ng, shu bot orqali to'lov rekvizitlari avtomatik yuboriladi — skrinshot yuborsangiz, tasdiqlangach kanal havolasi keladi.",
-   "Как произвести оплату?", "После выбора курса реквизиты для оплаты придут прямо в этом боте — отправьте скриншот, после подтверждения получите ссылку на канал."],
+  ["To'lovni qanday amalga oshiraman?", "Kursni tanlaganingizdan so'ng, to'lov rekvizitlari (karta raqami) yuboriladi. To'lovdan so'ng, chek skrinshotini to'g'ridan-to'g'ri adminga yuborasiz — u sizni kurs kanaliga qo'shadi.",
+   "Как произвести оплату?", "После выбора курса вам придут реквизиты для оплаты (номер карты). После оплаты отправьте скриншот чека напрямую администратору — он добавит вас в канал курса."],
+  ["Qaysi davlatlar bilan ishlaysiz?", "Ispaniya, Fransiya, Germaniya, Kombo (Litva/Belgiya/Avstriya/Bolgariya/Lyuksemburg/Niderlandiya), Yaponiya, AQSH, Buyuk Britaniya, Hong Kong, Avstraliya va Kanada uchun to'liq tayyor kurslar bor. Boshqa istalgan davlat bo'yicha AI yordamchi orqali maslahat olishingiz mumkin.",
+   "С какими странами вы работаете?", "Есть готовые курсы по Испании, Франции, Германии, Комбо (Литва/Бельгия/Австрия/Болгария/Люксембург/Нидерланды), Японии, США, Великобритании, Гонконгу, Австралии и Канаде. По любой другой стране можно получить совет через AI-помощника."],
+  ["AI yordamchidan kuniga necha marta foydalansam bo'ladi?", "Bepul tarifda kuniga 5 ta savol berishingiz mumkin. Istalgan kursni sotib olgach, bu limit 25 tagacha oshadi.",
+   "Сколько раз в день можно пользоваться AI-помощником?", "На бесплатном тарифе — 5 вопросов в день. После покупки любого курса лимит увеличивается до 25."],
+  ["Promo kod nima uchun kerak?", "Ro'yxatdan o'tganingizda sizga shaxsiy promo kod beriladi. Do'stingizga bering — u kursni sotib olganda ikkalangiz ham chegirma olasiz. Promo kodingizni \"Boshqa imkoniyatlar\" bo'limidan ko'rishingiz mumkin.",
+   "Зачем нужен промокод?", "При регистрации вам выдаётся личный промокод. Поделитесь им с другом — при покупке курса вы оба получите скидку. Свой промокод можно посмотреть в разделе \"Другие возможности\"."],
 ];
 
 const SINGLE_COURSE_DESC = {
@@ -947,6 +951,16 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
     backButton(chatId, 'courses'),
     { parse_mode: 'Markdown' }
   );
+
+  // 2 soatdan keyin — agar hali to'lov tasdiqlanmagan bo'lsa, muloyim eslatma yuboramiz
+  setTimeout(() => {
+    if (!pendingPurchases.has(String(chatId))) return; // allaqachon tasdiqlangan yoki bekor qilingan
+    const reminderLang = getLang(chatId);
+    const reminderText = reminderLang === 'ru'
+      ? `👋 Вы выбрали "${name}", но мы ещё не получили подтверждение оплаты.\n\nЕсли оплатили — просто напишите админу: ${ADMIN_CONTACT_USERNAME_MD}\nЕсли передумали или есть вопрос — тоже напишите, поможем.`
+      : `👋 Siz "${name}" kursini tanlagan edingiz, lekin hali to'lov tasdiqlanmadi.\n\nAgar to'lov qilgan bo'lsangiz — adminga yozing: ${ADMIN_CONTACT_USERNAME_MD}\nSavolingiz yoki fikringiz o'zgargan bo'lsa ham — yozing, yordam beramiz.`;
+    sendContent(chatId, reminderText, { reply_markup: backButton(chatId, 'courses'), parse_mode: 'Markdown' }).catch(() => {});
+  }, 2 * 60 * 60 * 1000);
 }
 
 async function handleStartPayload(chatId, payload, fromUser) {
@@ -1377,12 +1391,33 @@ bot.onText(/\/stats/, (msg) => {
   ).length;
   const noPurchaseAtAll = total - withConfirmed - withPendingOnly;
 
+  // Daromad va kurslar bo'yicha hisoblash
+  const priceToNumber = (priceStr) => parseInt((priceStr || '0').replace(/[^\d]/g, ''), 10) || 0;
+  const courseCounts = {};
+  let totalRevenue = 0;
+  users.forEach(([, u]) => {
+    (u.purchases || []).forEach(p => {
+      if (p.status === 'confirmed') {
+        totalRevenue += priceToNumber(p.price);
+        courseCounts[p.name] = (courseCounts[p.name] || 0) + 1;
+      }
+    });
+  });
+  const topCourses = Object.entries(courseCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, count]) => `   • ${name}: ${count} ta`)
+    .join('\n');
+
   const text = `📊 VizaAI bot statistikasi\n\n` +
     `👥 Jami ro'yxatdan o'tganlar: ${total}\n` +
     `✅ Xarid qilganlar (tasdiqlangan): ${withConfirmed}\n` +
     `⏳ So'rov yuborgan, lekin to'lamagan: ${withPendingOnly}\n` +
     `❌ Hech narsa so'ramaganlar: ${noPurchaseAtAll}\n\n` +
-    `Kimga qo'ng'iroq qilish kerakligini ko'rish uchun: /qongiroq`;
+    `💰 Jami daromad (tasdiqlangan): ${totalRevenue.toLocaleString('ru-RU')} so'm\n\n` +
+    (topCourses ? `🏆 Eng ko'p sotilgan kurslar:\n${topCourses}\n\n` : '') +
+    `Kimga qo'ng'iroq qilish kerakligini ko'rish uchun: /qongiroq\n` +
+    `Hammaga xabar yuborish uchun: /xabar <matn>`;
   bot.sendMessage(chatId, text);
 });
 
@@ -1413,6 +1448,37 @@ bot.onText(/\/qongiroq/, (msg) => {
   // Telegram xabar uzunligi cheklangan (~4096) — kerak bo'lsa bo'lib yuboramiz
   const chunks = fullText.match(/[\s\S]{1,3500}/g) || [fullText];
   chunks.forEach(chunk => bot.sendMessage(chatId, chunk));
+});
+
+// ---------------------------------------------------------------
+// ADMIN: BARCHA foydalanuvchilarga bir vaqtda xabar yuborish
+// Foydalanish: /xabar Matningiz shu yerda
+// ---------------------------------------------------------------
+bot.onText(/\/xabar (.+)/s, async (msg, match) => {
+  const chatId = msg.chat.id;
+  if (!isAdmin(chatId)) return;
+  const broadcastText = match[1].trim();
+  const allUsers = Object.keys(usersDB);
+
+  if (allUsers.length === 0) {
+    return bot.sendMessage(chatId, "Ro'yxatdan o'tgan foydalanuvchi yo'q.");
+  }
+
+  await bot.sendMessage(chatId, `⏳ ${allUsers.length} ta foydalanuvchiga yuborilmoqda...`);
+
+  let sent = 0, failed = 0;
+  for (const userId of allUsers) {
+    try {
+      await bot.sendMessage(userId, `📢 ${broadcastText}`);
+      sent++;
+    } catch (e) {
+      failed++;
+    }
+    // Telegram'ning spam-cheklovidan qochish uchun har xabar orasida kichik tanaffus
+    await new Promise(r => setTimeout(r, 60));
+  }
+
+  await bot.sendMessage(chatId, `✅ Yuborildi: ${sent} ta\n❌ Yuborilmadi: ${failed} ta (botni bloklaganlar)`);
 });
 
 // ---------------------------------------------------------------
