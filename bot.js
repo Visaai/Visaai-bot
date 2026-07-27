@@ -488,6 +488,22 @@ const TOUR_PACKAGES = {
 };
 
 // ---------------------------------------------------------------
+// SAYOHAT BYUDJETI KALKULYATORI — taxminiy narxlar (aviabilet,
+// mehmonxona/kecha, kunlik xarajat) — Toshkentdan boshlab hisoblangan
+// ---------------------------------------------------------------
+const BUDGET_COUNTRIES = [
+  { key: 'spain',   flag: '🇪🇸', name: 'Ispaniya',   nameRu: 'Испания',   flight: 500, hotelPerNight: 45, dailyBudget: 35 },
+  { key: 'france',  flag: '🇫🇷', name: 'Fransiya',   nameRu: 'Франция',   flight: 520, hotelPerNight: 55, dailyBudget: 40 },
+  { key: 'germany', flag: '🇩🇪', name: 'Germaniya',  nameRu: 'Германия',  flight: 480, hotelPerNight: 50, dailyBudget: 38 },
+  { key: 'japan',   flag: '🇯🇵', name: 'Yaponiya',   nameRu: 'Япония',    flight: 650, hotelPerNight: 60, dailyBudget: 45 },
+  { key: 'usa',     flag: '🇺🇸', name: 'AQSH',       nameRu: 'США',       flight: 750, hotelPerNight: 70, dailyBudget: 50 },
+  { key: 'uk',      flag: '🇬🇧', name: 'Buyuk Britaniya', nameRu: 'Великобритания', flight: 550, hotelPerNight: 65, dailyBudget: 45 },
+  { key: 'hongkong',flag: '🇭🇰', name: 'Hong Kong',  nameRu: 'Гонконг',   flight: 480, hotelPerNight: 55, dailyBudget: 35 },
+  { key: 'australia', flag: '🇦🇺', name: 'Avstraliya', nameRu: 'Австралия', flight: 900, hotelPerNight: 60, dailyBudget: 42 },
+  { key: 'canada',  flag: '🇨🇦', name: 'Kanada',     nameRu: 'Канада',    flight: 800, hotelPerNight: 60, dailyBudget: 42 },
+];
+
+// ---------------------------------------------------------------
 // AI SYSTEM PROMPT — kurslarni faol targ'ib qiluvchi
 // ---------------------------------------------------------------
 function buildSystemPrompt(lang, chatId) {
@@ -1296,11 +1312,88 @@ bot.on('callback_query', async (query) => {
   // ---- Boshqa imkoniyatlar ----
   if (data === 'other') {
     return renderScreen(chatId, t.other_head, { inline_keyboard: [
+      [{ text: lang === 'ru' ? '👤 Мой профиль' : '👤 Mening profilim', callback_data: 'my_profile' }],
       [{ text: lang === 'ru' ? '🎁 Мой промокод' : '🎁 Mening promo kodim', callback_data: 'promo_show' }],
       [{ text: lang === 'ru' ? '✅ Ввести промокод' : '✅ Promo kod kiritish', callback_data: 'promo_enter' }],
+      [{ text: lang === 'ru' ? '🏆 Рейтинг рефералов' : "🏆 Referral reytingi", callback_data: 'referral_board' }],
+      [{ text: lang === 'ru' ? '💰 Калькулятор бюджета' : "💰 Byudjet kalkulyatori", callback_data: 'budget_calc' }],
       [{ text: t.partner_program, callback_data: 'lead_partner_start' }],
       [{ text: t.to_menu, callback_data: 'menu' }],
     ] });
+  }
+  if (data === 'my_profile') {
+    const u = getUser(chatId);
+    const joinedDate = u.joinedAt ? new Date(u.joinedAt).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'uz-UZ') : '—';
+    const confirmedPurchases = (u.purchases || []).filter(p => p.status === 'confirmed');
+    const pendingPurchases_ = (u.purchases || []).filter(p => p.status !== 'confirmed');
+    const referralCount = Object.values(usersDB).filter(other => other.referredBy === u.promoCode).length;
+
+    const purchasesLines = confirmedPurchases.length
+      ? confirmedPurchases.map(p => `   ✅ ${p.name}`).join('\n')
+      : (lang === 'ru' ? '   — пока нет' : "   — hali yo'q");
+    const pendingLines = pendingPurchases_.length
+      ? '\n' + (lang === 'ru' ? '⏳ В ожидании:\n' : "⏳ Kutilmoqda:\n") + pendingPurchases_.map(p => `   • ${p.name}`).join('\n')
+      : '';
+
+    const text = lang === 'ru'
+      ? `👤 Ваш профиль\n\n📅 Дата регистрации: ${joinedDate}\n🌍 Интересующее направление: ${u.interestedIn || 'ещё не выбрано'}\n🧠 Результат теста визы: ${u.chanceScorePct !== null && u.chanceScorePct !== undefined ? u.chanceScorePct + '%' : 'ещё не пройден'}\n📸 Проверок документов: ${u.docChecksCount}\n\n🎬 Купленные курсы:\n${purchasesLines}${pendingLines}\n\n🎁 Ваш промокод: \`${u.promoCode}\`\n👥 Приглашено друзей: ${referralCount}`
+      : `👤 Sizning profilingiz\n\n📅 Ro'yxatdan o'tgan sana: ${joinedDate}\n🌍 Qiziqqan yo'nalish: ${u.interestedIn || "hali tanlanmagan"}\n🧠 Viza testi natijasi: ${u.chanceScorePct !== null && u.chanceScorePct !== undefined ? u.chanceScorePct + '%' : "hali topshirilmagan"}\n📸 Hujjat tekshiruvlari: ${u.docChecksCount}\n\n🎬 Sotib olingan kurslar:\n${purchasesLines}${pendingLines}\n\n🎁 Sizning promo kodingiz: \`${u.promoCode}\`\n👥 Taklif qilingan do'stlar: ${referralCount}`;
+
+    return renderScreen(chatId, text, backButton(chatId, 'other'), { parse_mode: 'Markdown' });
+  }
+  if (data === 'referral_board') {
+    const counts = {};
+    Object.values(usersDB).forEach(other => {
+      if (other.referredBy) counts[other.referredBy] = (counts[other.referredBy] || 0) + 1;
+    });
+    const nameByCode = {};
+    Object.values(usersDB).forEach(other => { nameByCode[other.promoCode] = other.name || "Foydalanuvchi"; });
+
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const myCode = getUser(chatId).promoCode;
+    const myCount = counts[myCode] || 0;
+    const myRank = top.findIndex(([code]) => code === myCode);
+
+    const listText = top.length
+      ? top.map(([code, count], i) => `${i + 1}. ${nameByCode[code] || '???'} — ${count} ta`).join('\n')
+      : (lang === 'ru' ? 'Пока никто не приглашал друзей.' : "Hali hech kim do'st taklif qilmagan.");
+
+    const myLine = myRank === -1
+      ? (lang === 'ru' ? `\n\nВаше место: вне топ-10 (${myCount} приглашений)` : `\n\nSizning o'rningiz: TOP-10dan tashqarida (${myCount} ta taklif)`)
+      : (lang === 'ru' ? `\n\n🎯 Вы на ${myRank + 1}-м месте!` : `\n\n🎯 Siz ${myRank + 1}-o'rindasiz!`);
+
+    const head = lang === 'ru' ? '🏆 Топ-10 по рефералам:\n\n' : "🏆 Referral bo'yicha TOP-10:\n\n";
+    return renderScreen(chatId, `${head}${listText}${myLine}`, backButton(chatId, 'other'));
+  }
+  if (data === 'budget_calc') {
+    const rows = BUDGET_COUNTRIES.map(c => ([{ text: `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}`, callback_data: `budgetcalc_${c.key}` }]));
+    rows.push([{ text: t.back, callback_data: 'other' }]);
+    const head = lang === 'ru' ? '💰 Для какой страны рассчитать бюджет поездки?' : "💰 Qaysi davlat uchun sayohat byudjetini hisoblaymiz?";
+    return renderScreen(chatId, head, { inline_keyboard: rows });
+  }
+  if (data.startsWith('budgetcalc_')) {
+    const key = data.replace('budgetcalc_', '');
+    const c = BUDGET_COUNTRIES.find(x => x.key === key);
+    if (!c) return;
+    const rows = [3, 5, 7, 14].map(days => ([{ text: `${days} ${lang === 'ru' ? 'дней' : 'kun'}`, callback_data: `budgetdays_${key}_${days}` }]));
+    rows.push([{ text: t.back, callback_data: 'budget_calc' }]);
+    const head = lang === 'ru' ? `${c.flag} ${c.nameRu} — на сколько дней едете?` : `${c.flag} ${c.name} — necha kunga borasiz?`;
+    return renderScreen(chatId, head, { inline_keyboard: rows });
+  }
+  if (data.startsWith('budgetdays_')) {
+    const [, key, daysStr] = data.split('_');
+    const days = parseInt(daysStr, 10);
+    const c = BUDGET_COUNTRIES.find(x => x.key === key);
+    if (!c) return;
+    const hotelTotal = c.hotelPerNight * days;
+    const dailyTotal = c.dailyBudget * days;
+    const total = c.flight + hotelTotal + dailyTotal;
+
+    const text = lang === 'ru'
+      ? `${c.flag} ${c.nameRu} — ${days} дней\n\n✈️ Авиабилет (туда-обратно): ~$${c.flight}\n🏨 Отель (${days} ноч. × $${c.hotelPerNight}): ~$${hotelTotal}\n🍽 Ежедневные расходы (${days} дн. × $${c.dailyBudget}): ~$${dailyTotal}\n\n💰 Примерный итог: ~$${total}\n\n⚠️ Это приблизительная оценка, реальная стоимость зависит от сезона и ваших привычек.\n\n💡 Курс "${lang === 'ru' ? c.nameRu : c.name}" научит бронировать всё это намного дешевле!`
+      : `${c.flag} ${c.name} — ${days} kun\n\n✈️ Aviabilet (bordi-keldi): ~$${c.flight}\n🏨 Mehmonxona (${days} kecha × $${c.hotelPerNight}): ~$${hotelTotal}\n🍽 Kunlik xarajat (${days} kun × $${c.dailyBudget}): ~$${dailyTotal}\n\n💰 Taxminiy jami: ~$${total}\n\n⚠️ Bu taxminiy baho, haqiqiy narx mavsum va odatlaringizga qarab farq qiladi.\n\n💡 "${c.name}" kursi buni ancha arzonroq bron qilishni o'rgatadi!`;
+
+    return renderScreen(chatId, text, backButton(chatId, 'budget_calc'));
   }
   if (data === 'promo_show') {
     const u = getUser(chatId);
