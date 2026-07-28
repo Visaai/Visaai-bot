@@ -956,11 +956,19 @@ function computeChanceResult(chatId) {
 // ASOSIY MENYU
 // ---------------------------------------------------------------
 function mainMenuKeyboard(chatId) {
-  const t = T[getLang(chatId)];
+  const lang = getLang(chatId);
+  const t = T[lang];
   const adminUrl = `https://t.me/${ADMIN_CONTACT_USERNAME.replace('@', '')}`;
+  const u = usersDB[String(chatId)];
+  const today = new Date().toISOString().slice(0, 10);
+  const wheelAvailable = !u || u.lastWheelSpin !== today;
+  const wheelLabel = wheelAvailable
+    ? (lang === 'ru' ? '🎰 Колесо удачи — крутить!' : "🎰 Omad g'ildiragi — aylantiring!")
+    : (lang === 'ru' ? '🎰 Колесо удачи (завтра снова)' : "🎰 Omad g'ildiragi (ertaga yana)");
   return {
     inline_keyboard: [
       [{ text: t.menu_featured, callback_data: 'buy_course_kurs_barchasi' }],
+      [{ text: wheelLabel, callback_data: 'lucky_wheel' }],
       [{ text: t.menu_chance, callback_data: 'chance' }],
       [{ text: t.menu_services, callback_data: 'services' }, { text: t.menu_docs, callback_data: 'docs' }],
       [{ text: t.menu_courses, callback_data: 'courses' }, { text: t.menu_tours, callback_data: 'tours' }],
@@ -998,17 +1006,27 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
     ? (lang === 'ru' ? course.descRu : course.desc)
     : SINGLE_COURSE_DESC[lang];
   const userLabel = `${fromUser.first_name || ''} (@${fromUser.username || 'username yo\'q'}, ID: ${chatId})`;
-  pendingPurchases.set(String(chatId), { kind: 'course', key, name, userLabel });
 
   const u = getUser(chatId);
-  u.purchases.push({ key, name, price: course.price, status: 'pending', requestedAt: new Date().toISOString() });
+  const today = new Date().toISOString().slice(0, 10);
+  const hasActiveDiscount = u.activeDiscount && u.activeDiscount.expiresAt === today;
+  const discountPct = hasActiveDiscount ? u.activeDiscount.percent : 0;
+  const priceNumBase = parseInt(course.price.replace(/[^\d]/g, ''), 10) || 0;
+  const finalPriceNum = discountPct ? Math.round(priceNumBase * (1 - discountPct / 100)) : priceNumBase;
+  const displayPrice = discountPct ? `${finalPriceNum.toLocaleString('ru-RU')} so'm` : course.price;
+  const discountLine = discountPct
+    ? (lang === 'ru' ? `\n\n🎰 Применена скидка ${discountPct}% (с колеса удачи)!` : `\n\n🎰 ${discountPct}% chegirma qo'llandi (omad g'ildiragidan)!`)
+    : '';
+
+  pendingPurchases.set(String(chatId), { kind: 'course', key, name, userLabel, discountPct });
+  u.purchases.push({ key, name, price: displayPrice, status: 'pending', requestedAt: new Date().toISOString() });
   saveDB();
 
   // ---- Agar Click (yoki boshqa provayder) ulangan bo'lsa — to'g'ridan-to'g'ri
   // Telegram ichida to'lash imkoniyati beriladi (bir bosishda, chek yuborish shart emas) ----
   if (PAYMENT_PROVIDER_TOKEN) {
-    const priceNum = parseInt(course.price.replace(/[^\d]/g, ''), 10) || 0;
-    const invoiceDesc = `${desc}\n\n${lang === 'ru' ? 'Полный доступ после оплаты — сразу в этом чате.' : "To'lovdan so'ng to'liq ruxsat — shu chatning o'zida."}`;
+    const priceNum = finalPriceNum;
+    const invoiceDesc = `${desc}${discountLine}\n\n${lang === 'ru' ? 'Полный доступ после оплаты — сразу в этом чате.' : "To'lovdan so'ng to'liq ruxsat — shu chatning o'zida."}`;
     try {
       await bot.sendInvoice(chatId, name, invoiceDesc.slice(0, 255), `course_${key}_${chatId}_${Date.now()}`,
         PAYMENT_PROVIDER_TOKEN, 'UZS', [{ label: name, amount: priceNum * 100 }]);
@@ -1027,7 +1045,7 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
     : `\n\n✅ To'lovdan so'ng chek skrinshotini to'g'ridan-to'g'ri adminga yuboring — shunda video darslik kanaliga ruxsat olasiz: ${ADMIN_CONTACT_USERNAME_MD}`;
 
   await renderScreen(chatId,
-    `${t.purchase_thanks}: "${name}" — ${course.price} 🎬\n\n${desc}\n\n${t.purchase_pay}\n\n${cardBlock}${afterPayLine}`,
+    `${t.purchase_thanks}: "${name}" — ${displayPrice} 🎬${discountLine}\n\n${desc}\n\n${t.purchase_pay}\n\n${cardBlock}${afterPayLine}`,
     backButton(chatId, 'courses'),
     { parse_mode: 'Markdown' }
   );
@@ -1405,6 +1423,50 @@ bot.on('callback_query', async (query) => {
   }
 
   // ---- Boshqa imkoniyatlar ----
+  if (data === 'lucky_wheel') {
+    const u = getUser(chatId);
+    const today = new Date().toISOString().slice(0, 10);
+    if (u.lastWheelSpin === today) {
+      const already = lang === 'ru'
+        ? "🎰 Вы уже крутили колесо сегодня! Возвращайтесь завтра за новым призом."
+        : "🎰 Siz bugun allaqachon g'ildirakni aylantirdingiz! Ertaga yangi sovg'a uchun qayting.";
+      return renderScreen(chatId, already, backButton(chatId));
+    }
+    u.lastWheelSpin = today;
+
+    // Sovg'alar: ehtimollik og'irligi bilan
+    const roll = Math.random() * 100;
+    let prizeText, prizeTextRu;
+    if (roll < 35) {
+      prizeText = "😔 Bu safar hech narsa chiqmadi. Ertaga qayta urinib ko'ring!";
+      prizeTextRu = "😔 На этот раз ничего не выпало. Попробуйте завтра снова!";
+    } else if (roll < 60) {
+      u.aiBonusDate = today;
+      u.aiBonusToday = (u.aiBonusDate === today ? (u.aiBonusToday || 0) : 0) + 2;
+      prizeText = "🎁 Tabriklaymiz! +2 ta bonus AI savol yutdingiz — bugun ishlatishingiz mumkin!";
+      prizeTextRu = "🎁 Поздравляем! Вы выиграли +2 бонусных вопроса к AI — можно использовать сегодня!";
+    } else if (roll < 80) {
+      u.activeDiscount = { percent: 5, expiresAt: today };
+      prizeText = "🎁 Tabriklaymiz! Bugun istalgan kursga 5% chegirma yutdingiz!";
+      prizeTextRu = "🎁 Поздравляем! Вы выиграли скидку 5% на любой курс сегодня!";
+    } else if (roll < 95) {
+      u.activeDiscount = { percent: 10, expiresAt: today };
+      prizeText = "🎉 Ajoyib! Bugun istalgan kursga 10% chegirma yutdingiz!";
+      prizeTextRu = "🎉 Отлично! Вы выиграли скидку 10% на любой курс сегодня!";
+    } else {
+      u.activeDiscount = { percent: 15, expiresAt: today };
+      prizeText = "🏆 KATTA YUTUQ! Bugun istalgan kursga 15% chegirma yutdingiz!!!";
+      prizeTextRu = "🏆 ГЛАВНЫЙ ПРИЗ! Вы выиграли скидку 15% на любой курс сегодня!!!";
+    }
+    saveDB();
+
+    const text = (lang === 'ru' ? prizeTextRu : prizeText) +
+      (lang === 'ru' ? "\n\nВозвращайтесь завтра за новым призом!" : "\n\nErtaga yangi sovg'a uchun qayting!");
+    return renderScreen(chatId, `🎰\n\n${text}`, { inline_keyboard: [
+      [{ text: lang === 'ru' ? '🎬 Смотреть курсы' : "🎬 Kurslarni ko'rish", callback_data: 'courses' }],
+      [{ text: t.to_menu, callback_data: 'menu' }],
+    ] });
+  }
   if (data === 'other') {
     return renderScreen(chatId, t.other_head, { inline_keyboard: [
       [{ text: lang === 'ru' ? '👤 Мой профиль' : '👤 Mening profilim', callback_data: 'my_profile' }],
@@ -2009,16 +2071,19 @@ Oxiriga albatta shuni qo'shing: "⚠️ Bu AI orqali o'qilgan ma'lumot, xatolik 
   // ---- AI yordamchi / erkin savol ----
   if (text) {
     const u = getUser(chatId);
+    const today = new Date().toISOString().slice(0, 10);
+    if (u.aiQuestionDate !== today) { u.aiQuestionDate = today; u.aiQuestionCount = 0; }
     const isPaying = (u.purchases || []).some(p => p.status === 'confirmed');
-    const limit = isPaying ? 25 : 5;
+    const validBonus = u.aiBonusDate === today ? (u.aiBonusToday || 0) : 0;
+    const limit = (isPaying ? 25 : 5) + validBonus;
     u.aiQuestionCount = (u.aiQuestionCount || 0) + 1;
 
     if (u.aiQuestionCount > limit) {
       const limitMsg = isPaying
-        ? (lang === 'ru' ? `Вы использовали лимит в ${limit} вопросов. Обратитесь к нашему специалисту через "Премиум-консультацию".` : `Siz ${limit} ta savol limitidan foydalandingiz. "Premium konsultatsiya" orqali mutaxassisimizga murojaat qiling.`)
+        ? (lang === 'ru' ? `Вы использовали лимит в ${limit} вопросов сегодня. Обратитесь к нашему специалисту через "Премиум-консультацию", или напишите завтра.` : `Siz bugungi ${limit} ta savol limitidan foydalandingiz. "Premium konsultatsiya" orqali mutaxassisimizga murojaat qiling, yoki ertaga yozing.`)
         : (lang === 'ru'
-            ? `Вы использовали ${limit} бесплатных вопросов AI на сегодня 🙌\n\nВ платных тарифах (после покупки любого курса) лимит увеличивается до 25 вопросов. Также вы можете купить курс — там разбираются все детали.`
-            : `Siz bugungi ${limit} ta bepul AI savolingizdan foydalandingiz 🙌\n\nPullik tariflarda (istalgan kursni sotib olganingizdan keyin) limit 25 tagacha oshadi. Yoki kursni sotib oling — u yerda barcha detallar ochib berilgan.`);
+            ? `Вы использовали ${limit} бесплатных вопросов AI на сегодня 🙌\n\nЗавтра лимит обновится. В платных тарифах (после покупки любого курса) лимит — 25 вопросов в день. Также можете крутить "Колесо удачи" — там иногда выпадают бонусные вопросы!`
+            : `Siz bugungi ${limit} ta bepul AI savolingizdan foydalandingiz 🙌\n\nErtaga limit yangilanadi. Pullik tariflarda (kurs sotib olgandan keyin) kuniga 25 ta savol beriladi. Yoki "Omad g'ildiragi"ni aylantiring — ba'zan bonus savollar chiqadi!`);
       u.aiQuestionCount -= 1; // hisoblamaymiz, chunki javob berilmadi
       saveDB();
       return sendContent(chatId, limitMsg, { reply_markup: { inline_keyboard: [
