@@ -492,15 +492,15 @@ const TOUR_PACKAGES = {
 // mehmonxona/kecha, kunlik xarajat) — Toshkentdan boshlab hisoblangan
 // ---------------------------------------------------------------
 const BUDGET_COUNTRIES = [
-  { key: 'spain',   flag: '🇪🇸', name: 'Ispaniya',   nameRu: 'Испания',   flight: 500, hotelPerNight: 45, dailyBudget: 35 },
-  { key: 'france',  flag: '🇫🇷', name: 'Fransiya',   nameRu: 'Франция',   flight: 520, hotelPerNight: 55, dailyBudget: 40 },
-  { key: 'germany', flag: '🇩🇪', name: 'Germaniya',  nameRu: 'Германия',  flight: 480, hotelPerNight: 50, dailyBudget: 38 },
-  { key: 'japan',   flag: '🇯🇵', name: 'Yaponiya',   nameRu: 'Япония',    flight: 650, hotelPerNight: 60, dailyBudget: 45 },
-  { key: 'usa',     flag: '🇺🇸', name: 'AQSH',       nameRu: 'США',       flight: 750, hotelPerNight: 70, dailyBudget: 50 },
-  { key: 'uk',      flag: '🇬🇧', name: 'Buyuk Britaniya', nameRu: 'Великобритания', flight: 550, hotelPerNight: 65, dailyBudget: 45 },
-  { key: 'hongkong',flag: '🇭🇰', name: 'Hong Kong',  nameRu: 'Гонконг',   flight: 480, hotelPerNight: 55, dailyBudget: 35 },
-  { key: 'australia', flag: '🇦🇺', name: 'Avstraliya', nameRu: 'Австралия', flight: 900, hotelPerNight: 60, dailyBudget: 42 },
-  { key: 'canada',  flag: '🇨🇦', name: 'Kanada',     nameRu: 'Канада',    flight: 800, hotelPerNight: 60, dailyBudget: 42 },
+  { key: 'spain',   flag: '🇪🇸', name: 'Ispaniya',   nameRu: 'Испания',   flight: 750, hotelPerNight: 75, dailyBudget: 60 },
+  { key: 'france',  flag: '🇫🇷', name: 'Fransiya',   nameRu: 'Франция',   flight: 780, hotelPerNight: 90, dailyBudget: 65 },
+  { key: 'germany', flag: '🇩🇪', name: 'Germaniya',  nameRu: 'Германия',  flight: 720, hotelPerNight: 85, dailyBudget: 60 },
+  { key: 'japan',   flag: '🇯🇵', name: 'Yaponiya',   nameRu: 'Япония',    flight: 950, hotelPerNight: 100, dailyBudget: 75 },
+  { key: 'usa',     flag: '🇺🇸', name: 'AQSH',       nameRu: 'США',       flight: 1100, hotelPerNight: 120, dailyBudget: 85 },
+  { key: 'uk',      flag: '🇬🇧', name: 'Buyuk Britaniya', nameRu: 'Великобритания', flight: 820, hotelPerNight: 110, dailyBudget: 75 },
+  { key: 'hongkong',flag: '🇭🇰', name: 'Hong Kong',  nameRu: 'Гонконг',   flight: 720, hotelPerNight: 90, dailyBudget: 55 },
+  { key: 'australia', flag: '🇦🇺', name: 'Avstraliya', nameRu: 'Австралия', flight: 1300, hotelPerNight: 100, dailyBudget: 70 },
+  { key: 'canada',  flag: '🇨🇦', name: 'Kanada',     nameRu: 'Канада',    flight: 1150, hotelPerNight: 95, dailyBudget: 70 },
 ];
 
 // ---------------------------------------------------------------
@@ -554,14 +554,15 @@ QOIDALAR:
 // ---------------------------------------------------------------
 // FOYDALANUVCHI HOLATI
 // ---------------------------------------------------------------
-const userState = new Map(); // chatId -> { mode, chanceStep, chanceScore, chanceAnswers, screenMsgId, pendingPayload, docCheckCountry, docCheckMatched }
+const userState = new Map(); // chatId -> { mode, chanceStep, chanceScore, chanceAnswers, chanceExtra, awaitingExtraFor, screenMsgId, pendingPayload, docCheckCountry, docCheckMatched }
 function getState(chatId) {
-  if (!userState.has(chatId)) userState.set(chatId, { mode: 'idle', chanceStep: 0, chanceScore: {}, chanceAnswers: {}, screenMsgId: null, pendingPayload: null, docCheckCountry: null, docCheckMatched: [] });
+  if (!userState.has(chatId)) userState.set(chatId, { mode: 'idle', chanceStep: 0, chanceScore: {}, chanceAnswers: {}, chanceExtra: {}, awaitingExtraFor: null, screenMsgId: null, pendingPayload: null, docCheckCountry: null, docCheckMatched: [] });
   return userState.get(chatId);
 }
 function clearPendingState(chatId) {
   const s = getState(chatId);
   s.mode = 'idle'; s.chanceStep = 0; s.chanceScore = {}; s.chanceAnswers = {};
+  s.chanceExtra = {}; s.awaitingExtraFor = null;
   s.docCheckCountry = null; s.docCheckMatched = [];
   // pendingPayload ataylab tozalanmaydi — registratsiyadan keyin ishlatiladi,
   // handleStartPayload chaqirilgach qo'lda tozalanadi (kerak bo'lsa)
@@ -623,21 +624,16 @@ const CHANCE_QUESTIONS = [
       {uz:"6 oy yoki ko'proq",ru:"6 месяцев и более",points:15},
       {uz:"3–5 oy",ru:"3–5 месяцев",points:9},
       {uz:"1–2 oy",ru:"1–2 месяца",points:4},
+      {uz:"Men hozir ishlamayapman",ru:"Я сейчас не работаю",points:1},
     ]},
   // --- Moliya ---
-  { key:'income', q:{uz:"Oylik rasmiy daromadingiz?", ru:"Ваш официальный ежемесячный доход?"},
+  { key:'income', type:'text', q:{uz:"Oylik rasmiy daromadingiz qancha? (dollarda, masalan: 800)", ru:"Какой у вас официальный ежемесячный доход? (в долларах, например: 800)"} },
+  { key:'bankTurnover', q:{uz:"Bank hisobingizda hozir taxminan qancha pul bor? (elchixonaga ko'rsatish uchun)", ru:"Сколько денег сейчас примерно на вашем банковском счёте? (для посольства)"},
     options:[
-      {uz:"$2000 dan yuqori",ru:"Более $2000",points:25},
-      {uz:"$1000–2000",ru:"$1000–2000",points:20},
-      {uz:"$500–1000",ru:"$500–1000",points:12},
-      {uz:"$500 dan kam",ru:"Менее $500",points:5},
-    ]},
-  { key:'bankTurnover', q:{uz:"Bank hisobingizdagi aylanma necha oylik?", ru:"За сколько месяцев оборот на вашем счёте?"},
-    options:[
-      {uz:"6 oy yoki ko'proq",ru:"6 месяцев и более",points:20},
-      {uz:"3–5 oy",ru:"3–5 месяцев",points:14},
-      {uz:"1–2 oy",ru:"1–2 месяца",points:7},
-      {uz:"Aylanma yo'q",ru:"Оборота нет",points:0},
+      {uz:"$5000 dan ko'p",ru:"Более $5000",points:20},
+      {uz:"$2000–5000",ru:"$2000–5000",points:14},
+      {uz:"$500–2000",ru:"$500–2000",points:7},
+      {uz:"$500 dan kam",ru:"Менее $500",points:0},
     ]},
   { key:'payer', q:{uz:"Safar xarajatini kim to'laydi?", ru:"Кто оплачивает поездку?"},
     options:[
@@ -656,11 +652,13 @@ const CHANCE_QUESTIONS = [
       {uz:"Yo'q, O'zbekistonda qoladi",ru:"Нет, остаётся в Узбекистане",points:10},
       {uz:"Ha, birga boradi",ru:"Да, едет со мной",points:5},
     ]},
-  { key:'assets', q:{uz:"Mulk yoki uzoq muddatli majburiyatingiz bormi (uy, biznes)?", ru:"Есть ли имущество или долгосрочные обязательства (дом, бизнес)?"},
+  { key:'assets', q:{uz:"Sizda nima bor? (eng mos javobni tanlang)", ru:"Что у вас есть? (выберите наиболее подходящий вариант)"},
     options:[
-      {uz:"Ha, bor",ru:"Да, есть",points:15},
-      {uz:"Qisman",ru:"Частично",points:8},
-      {uz:"Yo'q",ru:"Нет",points:0},
+      {uz:"Uy/kvartira VA avtomobil",ru:"Дом/квартира И автомобиль",points:15},
+      {uz:"Faqat uy/kvartira",ru:"Только дом/квартира",points:12},
+      {uz:"Faqat avtomobil yoki biznes ulushi",ru:"Только автомобиль или доля в бизнесе",points:9},
+      {uz:"Yer uchastkasi",ru:"Земельный участок",points:6},
+      {uz:"Hech narsa yo'q",ru:"Ничего нет",points:0},
     ]},
   // --- Safar tarixi ---
   { key:'travelRegion', q:{uz:"Ilgari qaysi mintaqaga sayohat qilgansiz?", ru:"В какой регион вы раньше путешествовали?"},
@@ -669,6 +667,7 @@ const CHANCE_QUESTIONS = [
       {uz:"AQSH/UK/Kanada/Avstraliya",ru:"США/Великобритания/Канада/Австралия",points:18},
       {uz:"Yaqin davlatlar (Rossiya, Turkiya va h.k.)",ru:"Соседние страны (Россия, Турция и т.д.)",points:10},
       {uz:"Hech qayerga chiqmaganman",ru:"Никогда не выезжал(а)",points:3},
+      {uz:"O'zim yozaman (bir nechta davlat)",ru:"Напишу сам(а) (несколько стран)",points:15,custom:true},
     ]},
   { key:'rejection', q:{uz:"Oldin viza rad javobi bo'lganmi?", ru:"Были ли раньше отказы в визе?"},
     options:[
@@ -697,11 +696,13 @@ const CHANCE_QUESTIONS = [
       {uz:"1 yildan kam",ru:"Менее 1 года",points:2},
     ]},
 ];
-const CHANCE_MAX_SCORE = CHANCE_QUESTIONS.reduce((sum, q) => sum + Math.max(...q.options.map(o => o.points)), 0);
+const CHANCE_MAX_SCORE = CHANCE_QUESTIONS.reduce((sum, q) => sum + (q.type === 'text' ? 25 : Math.max(...q.options.map(o => o.points))), 0);
 
 function chanceQuestionKeyboard(stepIdx, lang) {
   const step = CHANCE_QUESTIONS[stepIdx];
-  const rows = step.options.map((o, i) => ([{ text: o[lang], callback_data: `chance_ans_${stepIdx}_${i}` }]));
+  const backRow = stepIdx > 0 ? [{ text: lang === 'ru' ? '⬅️ Предыдущий вопрос' : "⬅️ Oldingi savol", callback_data: `chance_back_${stepIdx}` }] : null;
+  const rows = step.type === 'text' ? [] : step.options.map((o, i) => ([{ text: o[lang], callback_data: `chance_ans_${stepIdx}_${i}` }]));
+  if (backRow) rows.push(backRow);
   return { inline_keyboard: rows };
 }
 function chanceQuestionText(stepIdx, lang, chatId) {
@@ -713,6 +714,50 @@ function chanceQuestionText(stepIdx, lang, chatId) {
     prefix = lang === 'ru' ? `${name}, отлично! ` : `${name}, ajoyib! `;
   }
   return `${prefix}[${stepIdx + 1}/${CHANCE_QUESTIONS.length}] ${step.q[lang]}`;
+}
+async function renderChanceStep(chatId, s, lang) {
+  return renderScreen(chatId, chanceQuestionText(s.chanceStep, lang, chatId), chanceQuestionKeyboard(s.chanceStep, lang));
+}
+async function finishOrAdvanceChance(chatId, s, lang, t) {
+  if (s.chanceStep < CHANCE_QUESTIONS.length) {
+    return renderChanceStep(chatId, s, lang);
+  }
+  const resultText = computeChanceResult(chatId);
+
+  // Qo'shimcha ma'lumotlarni (homiy, rad etilgan davlat, sayohat tarixi) doimiy saqlaymiz
+  const extra = s.chanceExtra || {};
+  if (Object.keys(extra).length) {
+    const u = getUser(chatId);
+    u.chanceExtra = extra;
+    saveDB();
+    const extraLines = [];
+    if (extra.payerDetails) extraLines.push(`💰 Homiy/kompaniya: ${extra.payerDetails}`);
+    if (extra.rejectionCountry) extraLines.push(`❌ Rad etgan davlat: ${extra.rejectionCountry}`);
+    if (extra.travelCustom) extraLines.push(`✈️ Sayohat qilgan davlatlari: ${extra.travelCustom}`);
+    if (extraLines.length) {
+      notifyAdmins(`📋 Viza testi qo'shimcha ma'lumotlari (${chatId}):\n\n${extraLines.join('\n')}`);
+    }
+  }
+
+  clearPendingState(chatId);
+  const recKey = recommendCourse(chatId);
+  const recCourse = COURSE_CHANNELS[recKey];
+  const recName = lang === 'ru' ? recCourse.nameRu : recCourse.name;
+  const buyLabel = lang === 'ru' ? `🎬 Купить: ${recName} — ${recCourse.price}` : `🎬 Sotib olish: ${recName} — ${recCourse.price}`;
+  return renderScreen(chatId, resultText, { inline_keyboard: [
+    [{ text: buyLabel, callback_data: `buy_course_${recKey}` }],
+    [{ text: t.to_menu, callback_data: 'menu' }],
+  ] });
+}
+function scoreIncomeFromText(text) {
+  const num = parseInt(String(text).replace(/[^\d]/g, ''), 10);
+  if (isNaN(num)) return { points: 5, num: 0 };
+  let points;
+  if (num >= 2000) points = 25;
+  else if (num >= 1000) points = 20;
+  else if (num >= 500) points = 12;
+  else points = 5;
+  return { points, num };
 }
 const CHANCE_CATEGORIES = [
   { key: 'finance', keys: ['income', 'bankTurnover', 'payer'],
@@ -736,7 +781,7 @@ function analyzeChanceCategories(chanceScore, lang) {
       const q = CHANCE_QUESTIONS.find(q => q.key === k);
       if (!q) return;
       earned += chanceScore[k] || 0;
-      max += Math.max(...q.options.map(o => o.points));
+      max += q.type === 'text' ? 25 : Math.max(...q.options.map(o => o.points));
     });
     return { ...cat, pct: max ? Math.round((earned / max) * 100) : 0 };
   });
@@ -1080,7 +1125,7 @@ bot.on('callback_query', async (query) => {
   const wasPostRegLang = stateBefore.mode === 'post_reg_lang';
   const savedPendingPayload = stateBefore.pendingPayload;
 
-  if (!data.startsWith('chance_ans_') && data !== 'doccheck_finish') clearPendingState(chatId);
+  if (!data.startsWith('chance_ans_') && !data.startsWith('chance_back_') && data !== 'doccheck_finish') clearPendingState(chatId);
 
   if (data === 'menu') return sendMainMenu(chatId);
 
@@ -1111,8 +1156,18 @@ bot.on('callback_query', async (query) => {
   // ---- Viza imkoniyati testi ----
   if (data === 'chance') {
     const s = getState(chatId);
-    s.mode = 'chance'; s.chanceStep = 0; s.chanceScore = {}; s.chanceAnswers = {};
+    s.mode = 'chance'; s.chanceStep = 0; s.chanceScore = {}; s.chanceAnswers = {}; s.chanceExtra = {}; s.awaitingExtraFor = null;
     return renderScreen(chatId, `${t.chance_start}\n\n${chanceQuestionText(0, lang, chatId)}`, chanceQuestionKeyboard(0, lang));
+  }
+  if (data.startsWith('chance_back_')) {
+    const stepIdx = parseInt(data.replace('chance_back_', ''), 10);
+    const s = getState(chatId);
+    if (s.mode !== 'chance') return;
+    const target = stepIdx - 1;
+    if (target < 0) return;
+    s.chanceStep = target;
+    s.awaitingExtraFor = null;
+    return renderChanceStep(chatId, s, lang);
   }
   if (data.startsWith('chance_ans_')) {
     const parts = data.split('_');
@@ -1120,25 +1175,33 @@ bot.on('callback_query', async (query) => {
     const s = getState(chatId);
     if (s.mode !== 'chance' || s.chanceStep !== stepIdx) return;
     const question = CHANCE_QUESTIONS[stepIdx];
-    s.chanceScore[question.key] = question.options[optIdx].points;
+    const opt = question.options[optIdx];
+    s.chanceScore[question.key] = opt.points;
     s.chanceAnswers = s.chanceAnswers || {};
     s.chanceAnswers[question.key] = optIdx;
-    s.chanceStep += 1;
 
-    if (s.chanceStep < CHANCE_QUESTIONS.length) {
-      return renderScreen(chatId, chanceQuestionText(s.chanceStep, lang, chatId), chanceQuestionKeyboard(s.chanceStep, lang));
+    // ---- Maxsus holatlar: qo'shimcha matn talab qiladigan javoblar ----
+    if (question.key === 'travelRegion' && opt.custom) {
+      s.awaitingExtraFor = 'travel_custom';
+      const prompt = lang === 'ru' ? "Напишите, в какие страны вы уже путешествовали:" : "Qaysi davlatlarga sayohat qilganingizni yozing:";
+      return renderScreen(chatId, prompt, { inline_keyboard: [] });
     }
-    const resultText = computeChanceResult(chatId);
-    clearPendingState(chatId);
+    if (question.key === 'payer' && (optIdx === 1 || optIdx === 2)) {
+      s.awaitingExtraFor = 'payer_details';
+      const who = optIdx === 1 ? (lang === 'ru' ? 'спонсоре' : 'homiyingiz') : (lang === 'ru' ? 'компании' : 'kompaniyangiz');
+      const prompt = lang === 'ru'
+        ? `Расскажите немного о вашем спонсоре/компании (ФИО или название, кем приходится, чем занимается):`
+        : `${who[0].toUpperCase()}${who.slice(1)} haqida qisqacha yozing (F.I.Sh yoki nomi, sizga kim bo'ladi, nima bilan shug'ullanadi):`;
+      return renderScreen(chatId, prompt, { inline_keyboard: [] });
+    }
+    if (question.key === 'rejection' && optIdx !== 0) {
+      s.awaitingExtraFor = 'rejection_country';
+      const prompt = lang === 'ru' ? "Какая страна отказала в визе?" : "Qaysi davlat viza rad etgan edi?";
+      return renderScreen(chatId, prompt, { inline_keyboard: [] });
+    }
 
-    const recKey = recommendCourse(chatId);
-    const recCourse = COURSE_CHANNELS[recKey];
-    const recName = lang === 'ru' ? recCourse.nameRu : recCourse.name;
-    const buyLabel = lang === 'ru' ? `🎬 Купить: ${recName} — ${recCourse.price}` : `🎬 Sotib olish: ${recName} — ${recCourse.price}`;
-    return renderScreen(chatId, resultText, { inline_keyboard: [
-      [{ text: buyLabel, callback_data: `buy_course_${recKey}` }],
-      [{ text: t.to_menu, callback_data: 'menu' }],
-    ] });
+    s.chanceStep += 1;
+    return finishOrAdvanceChance(chatId, s, lang, t);
   }
 
   // ---- Viza xizmatlari ----
@@ -1605,6 +1668,38 @@ bot.on('message', async (msg) => {
   const userLabel = `${msg.from.first_name || ''} (@${msg.from.username || 'username yo\'q'}, ID: ${chatId})`;
 
   try {
+
+  // ---- VIZA IMKONIYATI TESTI — matn kiritish talab qilinadigan qadamlar ----
+  if (s.mode === 'chance' && text) {
+    const currentQuestion = CHANCE_QUESTIONS[s.chanceStep];
+
+    if (s.awaitingExtraFor === 'income' || (currentQuestion && currentQuestion.type === 'text' && currentQuestion.key === 'income' && !s.awaitingExtraFor)) {
+      const { points, num } = scoreIncomeFromText(text);
+      s.chanceScore.income = points;
+      s.chanceAnswers.income = num;
+      s.awaitingExtraFor = null;
+      s.chanceStep += 1;
+      return finishOrAdvanceChance(chatId, s, lang, t);
+    }
+    if (s.awaitingExtraFor === 'travel_custom') {
+      s.chanceExtra.travelCustom = text.trim().slice(0, 200);
+      s.awaitingExtraFor = null;
+      s.chanceStep += 1;
+      return finishOrAdvanceChance(chatId, s, lang, t);
+    }
+    if (s.awaitingExtraFor === 'payer_details') {
+      s.chanceExtra.payerDetails = text.trim().slice(0, 300);
+      s.awaitingExtraFor = null;
+      s.chanceStep += 1;
+      return finishOrAdvanceChance(chatId, s, lang, t);
+    }
+    if (s.awaitingExtraFor === 'rejection_country') {
+      s.chanceExtra.rejectionCountry = text.trim().slice(0, 100);
+      s.awaitingExtraFor = null;
+      s.chanceStep += 1;
+      return finishOrAdvanceChance(chatId, s, lang, t);
+    }
+  }
 
   // ---- RO'YXATDAN O'TISH — telefon raqami qabul qilinmoqda ----
   if (s.mode === 'registering') {
