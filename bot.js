@@ -23,6 +23,10 @@ const BOT_VERSION = '2026-07-23-v9 (media_type tuzatish + til tanlash + stateles
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+// Click.uz (yoki boshqa provayder) orqali Telegram to'lovlari — ixtiyoriy.
+// Token BotFather'dan olinadi. Agar sozlanmagan bo'lsa, bot avvalgidek
+// qo'lda karta orqali to'lov oqimini ishlatadi (hech narsa buzilmaydi).
+const PAYMENT_PROVIDER_TOKEN = process.env.TELEGRAM_PAYMENT_PROVIDER_TOKEN || '';
 // Bir nechta admin — .env faylida vergul bilan ajratib yoziladi:
 // ADMIN_CHAT_IDS=111111111,222222222,333333333
 // (Eski ADMIN_CHAT_ID ham ishlaydi — orqaga moslik uchun)
@@ -1000,6 +1004,21 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
   u.purchases.push({ key, name, price: course.price, status: 'pending', requestedAt: new Date().toISOString() });
   saveDB();
 
+  // ---- Agar Click (yoki boshqa provayder) ulangan bo'lsa — to'g'ridan-to'g'ri
+  // Telegram ichida to'lash imkoniyati beriladi (bir bosishda, chek yuborish shart emas) ----
+  if (PAYMENT_PROVIDER_TOKEN) {
+    const priceNum = parseInt(course.price.replace(/[^\d]/g, ''), 10) || 0;
+    const invoiceDesc = `${desc}\n\n${lang === 'ru' ? 'Полный доступ после оплаты — сразу в этом чате.' : "To'lovdan so'ng to'liq ruxsat — shu chatning o'zida."}`;
+    try {
+      await bot.sendInvoice(chatId, name, invoiceDesc.slice(0, 255), `course_${key}_${chatId}_${Date.now()}`,
+        PAYMENT_PROVIDER_TOKEN, 'UZS', [{ label: name, amount: priceNum * 100 }]);
+      return;
+    } catch (err) {
+      console.error("To'lov invoysi yuborishda xato:", err);
+      // Xato bo'lsa — pastdagi qo'lda to'lov usuliga o'tamiz (foydalanuvchi jimida qolmasin)
+    }
+  }
+
   const cardBlock = lang === 'ru'
     ? `💳 Карта (нажмите, чтобы скопировать):\n\`${PAYMENT_CARD_NUMBER}\`\n👤 ${PAYMENT_CARD_HOLDER}`
     : `💳 Karta (bosib nusxalang):\n\`${PAYMENT_CARD_NUMBER}\`\n👤 ${PAYMENT_CARD_HOLDER}`;
@@ -1105,6 +1124,19 @@ bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
   }
 
   return handleStartPayload(chatId, payload, msg.from);
+});
+
+// ---------------------------------------------------------------
+// TELEGRAM ICHKI TO'LOVLARI (Click va h.k.) — ixtiyoriy, faqat
+// PAYMENT_PROVIDER_TOKEN sozlangan bo'lsa ishga tushadi
+// ---------------------------------------------------------------
+bot.on('pre_checkout_query', async (query) => {
+  // Telegram bu so'rovga 10 soniya ichida javob berishni talab qiladi
+  try {
+    await bot.answerPreCheckoutQuery(query.id, true);
+  } catch (e) {
+    console.error("pre_checkout_query xatosi:", e);
+  }
 });
 
 // ---------------------------------------------------------------
@@ -1668,6 +1700,29 @@ bot.on('message', async (msg) => {
   const userLabel = `${msg.from.first_name || ''} (@${msg.from.username || 'username yo\'q'}, ID: ${chatId})`;
 
   try {
+
+  // ---- TELEGRAM ICHKI TO'LOVI MUVAFFAQIYATLI BO'LDI — avtomatik tasdiqlaymiz ----
+  if (msg.successful_payment) {
+    const payload = msg.successful_payment.invoice_payload || '';
+    const match = payload.match(/^course_([a-z_]+)_/);
+    const key = match ? match[1] : null;
+    const course = key ? COURSE_CHANNELS[key] : null;
+    const name = course ? (lang === 'ru' ? course.nameRu : course.name) : (lang === 'ru' ? 'Курс' : 'Kurs');
+
+    const u = getUser(chatId);
+    const purchase = (u.purchases || []).slice().reverse().find(p => p.key === key && p.status !== 'confirmed');
+    if (purchase) { purchase.status = 'confirmed'; purchase.confirmedAt = new Date().toISOString(); }
+    saveDB();
+    pendingPurchases.delete(String(chatId));
+
+    const thankMsg = lang === 'ru'
+      ? `🎉 Оплата прошла успешно!\n\n"${name}" — теперь ваш. Админ добавит вас в канал курса в ближайшее время: ${ADMIN_CONTACT_USERNAME_MD}`
+      : `🎉 To'lov muvaffaqiyatli o'tdi!\n\n"${name}" — endi sizniki. Admin tez orada sizni kurs kanaliga qo'shadi: ${ADMIN_CONTACT_USERNAME_MD}`;
+    await sendContent(chatId, thankMsg, { reply_markup: backButton(chatId), parse_mode: 'Markdown' });
+
+    notifyAdmins(`💳 TO'LOV AVTOMATIK TASDIQLANDI (Telegram/Click orqali)!\n\nKurs: ${name}\nSumma: ${(msg.successful_payment.total_amount / 100).toLocaleString('ru-RU')} so'm\nFoydalanuvchi: ${userLabel}\n\nKanalga qo'shishni unutmang!`);
+    return;
+  }
 
   // ---- VIZA IMKONIYATI TESTI — matn kiritish talab qilinadigan qadamlar ----
   if (s.mode === 'chance' && text) {
