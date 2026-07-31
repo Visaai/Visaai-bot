@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-07-31-v11 (ish va student butunlay olib tashlandi: menyu + test — faqat turistik + kurslar)';
+const BOT_VERSION = '2026-07-31-v12 (AI sotuv agenti ulandi + faqat turistik/kurslar)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -1707,6 +1707,25 @@ bot.onText(/\/izoh_(\d+) (.+)/, (msg, match) => {
 });
 
 // ---------------------------------------------------------------
+// AI SOTUV AGENTI — har bir foydalanuvchi bilan gaplashib, kurs sotadi
+// ---------------------------------------------------------------
+const { createAgent } = require('./agent');
+const vizaAgent = createAgent({
+  anthropic, usersDB, getUser, getLang, saveDB, notifyAdmins,
+  triggerCoursePurchase, recommendCourse, COURSE_CHANNELS, bot,
+});
+
+// ADMIN: agentni ishga tushirish — ro'yxatdan o'tgan, jim turganlarga o'zi yozadi
+// Foydalanish: /agent_sell  yoki  /agent_sell 50  (nechta odamga)
+bot.onText(/^\/agent_sell(?:\s+(\d+))?$/, async (msg, match) => {
+  if (!isAdmin(msg.chat.id)) return;
+  const limit = match && match[1] ? parseInt(match[1], 10) : 30;
+  await bot.sendMessage(msg.chat.id, `⏳ Agent kurs sotish uchun foydalanuvchilarga yozmoqda (${limit} tagacha)...`);
+  const n = await vizaAgent.outreachBatch(limit);
+  await bot.sendMessage(msg.chat.id, `✅ Agent ${n} ta foydalanuvchiga birinchi xabar yozdi.\n\nJavob berganlar bilan agent o'zi suhbatlashib, kurs sotadi.`);
+});
+
+// ---------------------------------------------------------------
 // ODDIY XABARLAR: hujjat fotosi (chuqur AI tahlil), AI savol, saytdan lid
 // ---------------------------------------------------------------
 bot.on('message', async (msg) => {
@@ -2053,33 +2072,9 @@ Oxiriga albatta shuni qo'shing: "⚠️ Bu AI orqali o'qilgan ma'lumot, xatolik 
 
     try {
       await bot.sendChatAction(chatId, 'typing');
-      const history = conversations.get(chatId) || [];
-      history.push({ role: 'user', content: text });
-
-      const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 500,
-        system: buildSystemPrompt(lang, chatId),
-        messages: history,
-      });
-
-      const reply = response.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
-      history.push({ role: 'assistant', content: reply });
-      conversations.set(chatId, history.slice(-10));
-
-      // Agar AI javobida biror kurs tilga olingan bo'lsa — "Sotib olish"
-      // tugmasini to'g'ridan-to'g'ri shu xabarga qo'shamiz
-      const recommendedKey = detectMentionedCourse(reply);
-      const keyboard = { inline_keyboard: [] };
-      if (recommendedKey) {
-        const course = COURSE_CHANNELS[recommendedKey];
-        const courseName = lang === 'ru' ? course.nameRu : course.name;
-        const buyLabel = lang === 'ru' ? `🎬 Купить: ${courseName} — ${course.price}` : `🎬 Sotib olish: ${courseName} — ${course.price}`;
-        keyboard.inline_keyboard.push([{ text: buyLabel, callback_data: `buy_course_${recommendedKey}` }]);
-      }
-      keyboard.inline_keyboard.push([{ text: t.to_menu, callback_data: 'menu' }]);
-
-      await sendContent(chatId, reply, { reply_markup: keyboard });
+      // AI sotuv agenti javob beradi — suhbatlashadi va kurs sotadi
+      const reply = await vizaAgent.runAgent(chatId, text, { fromUser: msg.from });
+      await sendContent(chatId, reply.text, { reply_markup: backButton(chatId) });
     } catch (err) {
       console.error('AI xatosi:', err);
       await sendContent(chatId, t.ai_error, { reply_markup: backButton(chatId) });
