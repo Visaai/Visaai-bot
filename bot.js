@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-07-31-v10 (ish va student bo\'limlari olib tashlandi — faqat turistik + kurslar)';
+const BOT_VERSION = '2026-07-31-v11 (ish va student butunlay olib tashlandi: menyu + test — faqat turistik + kurslar)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -610,8 +610,6 @@ const CHANCE_QUESTIONS = [
   { key:'purpose', q:{uz:"Safar maqsadingiz?", ru:"Цель поездки?"},
     options:[
       {uz:"Turistik",ru:"Туристическая",points:10},
-      {uz:"Ishchi",ru:"Рабочая",points:8},
-      {uz:"Talaba",ru:"Студенческая",points:8},
       {uz:"Biznes",ru:"Бизнес",points:9},
     ]},
   // --- Bandlik / barqarorlik ---
