@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-07-31-v13 (AI agent: yangi mijozga 10 daq keyin o\'zi yozadi + /agent_sell)';
+const BOT_VERSION = '2026-07-31-v14 (agent suhbatlari adminga nusxalanadi + 10 daq auto + /agent_sell)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -2086,6 +2086,8 @@ Oxiriga albatta shuni qo'shing: "⚠️ Bu AI orqali o'qilgan ma'lumot, xatolik 
       // AI sotuv agenti javob beradi — suhbatlashadi va kurs sotadi
       const reply = await vizaAgent.runAgent(chatId, text, { fromUser: msg.from });
       await sendContent(chatId, reply.text, { reply_markup: backButton(chatId) });
+      // Adminga nusxa — mijoz agentga javob berganda (kuzatib turish uchun)
+      notifyAdmins(`💬 Agent suhbati — ${userLabel}\n\n🧑 Mijoz: ${text}\n\n🤖 Agent: ${reply.text}`);
     } catch (err) {
       console.error('AI xatosi:', err);
       await sendContent(chatId, t.ai_error, { reply_markup: backButton(chatId) });
