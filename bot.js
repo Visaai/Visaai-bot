@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-07-31-v14 (agent suhbatlari adminga nusxalanadi + 10 daq auto + /agent_sell)';
+const BOT_VERSION = '2026-07-31-v15 (kuchli agent: chegirma 20% + follow-up + stats + soha daromadi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -1723,6 +1723,33 @@ bot.onText(/^\/agent_sell(?:\s+(\d+))?$/, async (msg, match) => {
   await bot.sendMessage(msg.chat.id, `⏳ Agent kurs sotish uchun foydalanuvchilarga yozmoqda (${limit} tagacha)...`);
   const n = await vizaAgent.outreachBatch(limit);
   await bot.sendMessage(msg.chat.id, `✅ Agent ${n} ta foydalanuvchiga birinchi xabar yozdi.\n\nJavob berganlar bilan agent o'zi suhbatlashib, kurs sotadi.`);
+});
+
+// ADMIN: follow-up — kursni ko'rib/gaplashib, lekin SOTIB OLMAGANLARGA agent qayta yozadi
+// Foydalanish: /agent_followup  yoki  /agent_followup 50
+bot.onText(/^\/agent_followup(?:\s+(\d+))?$/, async (msg, match) => {
+  if (!isAdmin(msg.chat.id)) return;
+  const limit = match && match[1] ? parseInt(match[1], 10) : 30;
+  await bot.sendMessage(msg.chat.id, `⏳ Agent sotib olmaganlarga qayta yozmoqda (${limit} tagacha)...`);
+  const n = await vizaAgent.followupBatch(limit);
+  await bot.sendMessage(msg.chat.id, `✅ Agent ${n} ta mijozga follow-up (turtki) yozdi.`);
+});
+
+// ADMIN: agent statistikasi — konversiyani ko'rish
+bot.onText(/^\/agent_stats$/, (msg) => {
+  if (!isAdmin(msg.chat.id)) return;
+  const users = Object.values(usersDB);
+  const messaged = users.filter(u => u.agentOutreached).length;
+  const replied = users.filter(u => (u.agentHistory || []).some(m => m.role === 'user' && m.content)).length;
+  const bought = users.filter(u => (u.purchases || []).some(p => p.status === 'confirmed')).length;
+  const conv = messaged ? Math.round((bought / messaged) * 100) : 0;
+  bot.sendMessage(msg.chat.id,
+    `📊 AGENT STATISTIKASI\n\n` +
+    `📤 Agent yozgan: ${messaged} ta\n` +
+    `💬 Javob bergan: ${replied} ta\n` +
+    `✅ Kurs sotib olgan: ${bought} ta\n` +
+    `📈 Konversiya: ${conv}% (agent yozganlardan sotib olganlar)\n\n` +
+    `Buyruqlar:\n/agent_sell — jim turganlarga yozish\n/agent_followup — sotib olmaganlarga turtki`);
 });
 
 // ---------------------------------------------------------------
