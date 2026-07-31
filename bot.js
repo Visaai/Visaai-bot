@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-07-31-v16 (avto follow-up + referral 5% + sotgach do\'st taklifi)';
+const BOT_VERSION = '2026-07-31-v17 (katta oqimga tayyor: outreach navbati + 2 soatlik admin xulosa)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -575,6 +575,12 @@ function clearPendingState(chatId) {
 const conversations = new Map();
 const pendingPurchases = new Map();
 
+// Katta oqim uchun (kuniga 1000+ odam):
+// 1) outreachQueue — agent yangi mijozlarga tekis, navbat bilan yozadi (spike'da limitga urilmaydi)
+// 2) adminCounters — adminni har bir odam bilan bezovta qilmay, 2 soatlik xulosa yuboramiz
+const outreachQueue = [];
+const adminCounters = { reg: 0, chats: 0, offers: 0, sales: 0 };
+
 // ---------------------------------------------------------------
 // BIR-EKRAN NAVIGATSIYA — eski menyu xabari tahrirlanadi (uchib ketadi)
 // ---------------------------------------------------------------
@@ -1021,6 +1027,7 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
   pendingPurchases.set(String(chatId), { kind: 'course', key, name, userLabel, discountPct });
   u.purchases.push({ key, name, price: displayPrice, status: 'pending', requestedAt: new Date().toISOString() });
   saveDB();
+  adminCounters.offers++; // 2 soatlik xulosada ko'rsatiladi
 
   // ---- Agar Click (yoki boshqa provayder) ulangan bo'lsa — to'g'ridan-to'g'ri
   // Telegram ichida to'lash imkoniyati beriladi (bir bosishda, chek yuborish shart emas) ----
@@ -1568,6 +1575,7 @@ bot.onText(/\/tasdiqla (.+)/, async (msg, match) => {
 
   await bot.sendMessage(chatId, `Yuborildi: ${purchase.userLabel}`);
   sendAdminProfileCard(targetId, `To'lov TASDIQLANDI: ${purchase.name} ✅`);
+  adminCounters.sales++;
 
   // Sotgandan keyin — do'st chaqirishga taklif (yangi mijozlar keltiradi)
   if (purchase.kind === 'course') {
@@ -1729,6 +1737,39 @@ const vizaAgent = createAgent({
   triggerCoursePurchase, recommendCourse, COURSE_CHANNELS, bot,
 });
 
+// Outreach navbati ishchisi — har 2.5 soniyada bittadan yozadi (1000 odam birdan kirsa ham urilmaydi)
+setInterval(async () => {
+  const now = Date.now();
+  const idx = outreachQueue.findIndex(it => it.readyAt <= now);
+  if (idx === -1) return;
+  const item = outreachQueue.splice(idx, 1)[0];
+  const uu = usersDB[String(item.chatId)];
+  if (!uu || uu.agentOutreached || uu.state === 'human') return;
+  try {
+    const txt = await vizaAgent.agentOutreach(item.chatId, item.fromUser);
+    await bot.sendMessage(item.chatId, txt);
+    uu.agentOutreached = true; saveDB();
+  } catch (e) { /* bloklagan bo'lishi mumkin */ }
+}, 2500);
+
+// Admin xulosasi — har 2 soatda bir marta (kunduzi), har bir odam bilan bezovta qilmaydi
+setInterval(() => {
+  const hourTashkent = (new Date().getUTCHours() + 5) % 24;
+  if (hourTashkent < 9 || hourTashkent >= 22) return;
+  const c = adminCounters;
+  if (c.reg || c.chats || c.offers || c.sales) {
+    notifyAdmins(
+      `📊 Oxirgi 2 soat xulosasi:\n` +
+      `🆕 Yangi ro'yxatdan: ${c.reg}\n` +
+      `💬 Agent bilan gaplashdi: ${c.chats}\n` +
+      `🎬 Kurs ko'rdi (pending): ${c.offers}\n` +
+      `✅ Sotildi: ${c.sales}\n\n` +
+      `Batafsil: /stats · /agent_stats · /qongiroq`
+    );
+    c.reg = 0; c.chats = 0; c.offers = 0; c.sales = 0;
+  }
+}, 2 * 60 * 60 * 1000);
+
 // ADMIN: agentni ishga tushirish — ro'yxatdan o'tgan, jim turganlarga o'zi yozadi
 // Foydalanish: /agent_sell  yoki  /agent_sell 50  (nechta odamga)
 bot.onText(/^\/agent_sell(?:\s+(\d+))?$/, async (msg, match) => {
@@ -1864,23 +1905,11 @@ bot.on('message', async (msg) => {
       ]] },
     });
 
-    notifyAdmins(`🆕 Yangi mijoz kirdi!\n\n👤 ${userLabel}\n📱 ${phone}\n\n⏳ 5 daqiqadan so'ng uning bot ichidagi faoliyati haqida qo'shimcha xabar keladi...`);
+    // Katta oqim uchun: adminni har bir odam bilan bezovta qilmaymiz — sanaymiz, 2 soatlik xulosa yuboriladi
+    adminCounters.reg++;
 
-    // 5 daqiqadan keyin — mijoz shu vaqt ichida bot ichida nima qilgani haqida to'liq xulosa
-    setTimeout(() => {
-      sendAdminProfileCard(chatId, "Kirganidan 5 daqiqa o'tdi — bot ichidagi faoliyati");
-    }, 5 * 60 * 1000);
-
-    // 10 daqiqadan keyin — AI agent mijozga O'ZI yozib, suhbatni boshlaydi va kurs sotadi
-    setTimeout(async () => {
-      try {
-        const uu = usersDB[String(chatId)];
-        if (!uu || uu.agentOutreached || uu.state === 'human') return; // allaqachon yozilgan yoki operatorda
-        const agentText = await vizaAgent.agentOutreach(chatId, msg.from);
-        await bot.sendMessage(chatId, agentText);
-        uu.agentOutreached = true; saveDB();
-      } catch (e) { /* foydalanuvchi bloklagan bo'lishi mumkin — e'tiborsiz qoldiramiz */ }
-    }, 10 * 60 * 1000);
+    // Agentni outreach navbatiga qo'shamiz — 10 daqiqadan keyin, tekis sur'atda o'zi yozadi (spike'ga chidaydi)
+    outreachQueue.push({ chatId, fromUser: msg.from, readyAt: Date.now() + 10 * 60 * 1000 });
 
     return;
   }
@@ -2127,8 +2156,7 @@ Oxiriga albatta shuni qo'shing: "⚠️ Bu AI orqali o'qilgan ma'lumot, xatolik 
       // AI sotuv agenti javob beradi — suhbatlashadi va kurs sotadi
       const reply = await vizaAgent.runAgent(chatId, text, { fromUser: msg.from });
       await sendContent(chatId, reply.text, { reply_markup: backButton(chatId) });
-      // Adminga nusxa — mijoz agentga javob berganda (kuzatib turish uchun)
-      notifyAdmins(`💬 Agent suhbati — ${userLabel}\n\n🧑 Mijoz: ${text}\n\n🤖 Agent: ${reply.text}`);
+      adminCounters.chats++; // har bir suhbatni alohida emas — 2 soatlik xulosada ko'rsatamiz
     } catch (err) {
       console.error('AI xatosi:', err);
       await sendContent(chatId, t.ai_error, { reply_markup: backButton(chatId) });
