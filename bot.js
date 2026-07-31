@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-07-31-v12 (AI sotuv agenti ulandi + faqat turistik/kurslar)';
+const BOT_VERSION = '2026-07-31-v13 (AI agent: yangi mijozga 10 daq keyin o\'zi yozadi + /agent_sell)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -1829,6 +1829,17 @@ bot.on('message', async (msg) => {
     setTimeout(() => {
       sendAdminProfileCard(chatId, "Kirganidan 5 daqiqa o'tdi — bot ichidagi faoliyati");
     }, 5 * 60 * 1000);
+
+    // 10 daqiqadan keyin — AI agent mijozga O'ZI yozib, suhbatni boshlaydi va kurs sotadi
+    setTimeout(async () => {
+      try {
+        const uu = usersDB[String(chatId)];
+        if (!uu || uu.agentOutreached || uu.state === 'human') return; // allaqachon yozilgan yoki operatorda
+        const agentText = await vizaAgent.agentOutreach(chatId, msg.from);
+        await bot.sendMessage(chatId, agentText);
+        uu.agentOutreached = true; saveDB();
+      } catch (e) { /* foydalanuvchi bloklagan bo'lishi mumkin — e'tiborsiz qoldiramiz */ }
+    }, 10 * 60 * 1000);
 
     return;
   }
