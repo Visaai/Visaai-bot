@@ -1093,16 +1093,6 @@ async function handleStartPayload(chatId, payload, fromUser) {
     return renderScreen(chatId, t.tours_head, { inline_keyboard: rows });
   }
 
-  // AI yordamchi — Ishchi viza konteksti bilan
-  if (payload === 'ai_ishchi') {
-    getState(chatId).mode = 'ai';
-    const lang = getLang(chatId);
-    const prompt = lang === 'ru'
-      ? 'Вы пришли с сайта (раздел "Рабочая виза"). Напишите ваш вопрос — AI поможет и подберёт нужный видеокурс.'
-      : "Siz saytdan keldingiz (\"Ishchi viza\" bo'limi). Savolingizni yozing — AI yordam beradi va mos video kursni tavsiya qiladi.";
-    return renderScreen(chatId, prompt, backButton(chatId));
-  }
-
   // Premium konsultatsiya — lid: ism so'raladi
   if (payload === 'consult' || payload === 'partner') {
     const s = getState(chatId);
@@ -1258,8 +1248,6 @@ bot.on('callback_query', async (query) => {
   if (data === 'services') {
     return renderScreen(chatId, t.services_head, { inline_keyboard: [
       [{ text: '✈️ Sayohat viza', callback_data: 'svc_travel' }],
-      [{ text: '💼 Ishchi viza', callback_data: 'svc_work' }],
-      [{ text: '🎓 Student', callback_data: 'svc_student' }],
       [{ text: '❓ FAQ', callback_data: 'svc_faq' }],
       [{ text: t.to_menu, callback_data: 'menu' }],
     ] });
@@ -1269,16 +1257,6 @@ bot.on('callback_query', async (query) => {
     rows.push([{ text: t.back, callback_data: 'services' }]);
     return renderScreen(chatId, t.svc_travel_head, { inline_keyboard: rows });
   }
-  if (data === 'svc_work') {
-    const rows = WORK_COUNTRIES.map(c => ([{ text: `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}`, callback_data: `chk_work_${c.key}` }]));
-    rows.push([{ text: t.back, callback_data: 'services' }]);
-    return renderScreen(chatId, t.svc_work_head, { inline_keyboard: rows });
-  }
-  if (data === 'svc_student') {
-    const rows = STUDENT_COUNTRIES.map(c => ([{ text: `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}`, callback_data: `chk_student_${c.key}` }]));
-    rows.push([{ text: t.back, callback_data: 'services' }]);
-    return renderScreen(chatId, t.svc_student_head, { inline_keyboard: rows });
-  }
   if (data.startsWith('chk_travel_')) {
     const c = COUNTRIES.find(x => x.key === data.replace('chk_travel_', ''));
     if (!c) return;
@@ -1287,24 +1265,6 @@ bot.on('callback_query', async (query) => {
     saveDB();
     const list = c.items.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]} — ${lang === 'ru' ? it[3] : it[2]}`).join('\n');
     return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId, 'svc_travel'));
-  }
-  if (data.startsWith('chk_work_')) {
-    const c = WORK_COUNTRIES.find(x => x.key === data.replace('chk_work_', ''));
-    if (!c) return;
-    const u = getUser(chatId);
-    u.interestedIn = `${c.name} (ishchi viza)`;
-    saveDB();
-    const list = WORK_CHECKLIST.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]} — ${lang === 'ru' ? it[3] : it[2]}`).join('\n');
-    return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId, 'svc_work'));
-  }
-  if (data.startsWith('chk_student_')) {
-    const c = STUDENT_COUNTRIES.find(x => x.key === data.replace('chk_student_', ''));
-    if (!c) return;
-    const u = getUser(chatId);
-    u.interestedIn = `${c.name} (talaba vizasi)`;
-    saveDB();
-    const list = STUDENT_CHECKLIST.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]} — ${lang === 'ru' ? it[3] : it[2]}`).join('\n');
-    return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId, 'svc_student'));
   }
   if (data === 'svc_faq') {
     const rows = FAQ_DATA.map((f, i) => ([{ text: lang === 'ru' ? f[2] : f[0], callback_data: `faq_${i}` }]));
