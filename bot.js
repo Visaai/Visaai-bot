@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-07-31-v15 (kuchli agent: chegirma 20% + follow-up + stats + soha daromadi)';
+const BOT_VERSION = '2026-07-31-v16 (avto follow-up + referral 5% + sotgach do\'st taklifi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -1008,12 +1008,14 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
   const u = getUser(chatId);
   const today = new Date().toISOString().slice(0, 10);
   const hasActiveDiscount = u.activeDiscount && u.activeDiscount.expiresAt === today;
-  const discountPct = hasActiveDiscount ? u.activeDiscount.percent : 0;
+  const wheelPct = hasActiveDiscount ? u.activeDiscount.percent : 0;
+  const referralPct = u.referredBy ? 5 : 0;           // do'st taklif qilingan bo'lsa 5% chegirma
+  const discountPct = Math.max(wheelPct, referralPct);
   const priceNumBase = parseInt(course.price.replace(/[^\d]/g, ''), 10) || 0;
   const finalPriceNum = discountPct ? Math.round(priceNumBase * (1 - discountPct / 100)) : priceNumBase;
   const displayPrice = discountPct ? `${finalPriceNum.toLocaleString('ru-RU')} so'm` : course.price;
   const discountLine = discountPct
-    ? (lang === 'ru' ? `\n\n🎰 Применена скидка ${discountPct}% (с колеса удачи)!` : `\n\n🎰 ${discountPct}% chegirma qo'llandi (omad g'ildiragidan)!`)
+    ? (lang === 'ru' ? `\n\n🎁 Применена скидка ${discountPct}%!` : `\n\n🎁 ${discountPct}% chegirma qo'llandi!`)
     : '';
 
   pendingPurchases.set(String(chatId), { kind: 'course', key, name, userLabel, discountPct });
@@ -1566,6 +1568,18 @@ bot.onText(/\/tasdiqla (.+)/, async (msg, match) => {
 
   await bot.sendMessage(chatId, `Yuborildi: ${purchase.userLabel}`);
   sendAdminProfileCard(targetId, `To'lov TASDIQLANDI: ${purchase.name} ✅`);
+
+  // Sotgandan keyin — do'st chaqirishga taklif (yangi mijozlar keltiradi)
+  if (purchase.kind === 'course') {
+    const bu = usersDB[String(targetId)];
+    if (bu) {
+      const inviteText = targetLang === 'ru'
+        ? `🎁 Пригласите друга! Отправьте ему свой промокод: ${bu.promoCode}\nПри покупке курса с этим кодом он получит скидку 5%.`
+        : `🎁 Do'stingizni ham chaqiring! Bu promo kodni ularga yuboring: ${bu.promoCode}\nKurs olayotganda shu kodni kiritsa — 5% chegirma oladi.`;
+      bot.sendMessage(targetId, inviteText).catch(() => {});
+    }
+  }
+
   pendingPurchases.delete(targetId);
 });
 
@@ -2142,5 +2156,18 @@ process.on('uncaughtException', (err) => {
   console.error('Ushlanmagan xato:', err);
   notifyAdmins(`🔴 Kutilmagan bot xatosi (uncaughtException): ${err && err.message ? err.message : err}`);
 });
+
+// ---------------------------------------------------------------
+// AVTOMATIK KUNLIK FOLLOW-UP — bot o'zi kunduzi sotib olmaganlarga turtki beradi
+// (har 3 soatda tekshiradi; faqat 09:00–21:00 Toshkent vaqtida; har mijozga kuniga 1 marta)
+// ---------------------------------------------------------------
+setInterval(async () => {
+  const hourTashkent = (new Date().getUTCHours() + 5) % 24; // Toshkent = UTC+5
+  if (hourTashkent < 9 || hourTashkent >= 21) return;       // tunda yozmaymiz
+  try {
+    const n = await vizaAgent.followupBatch(40);
+    if (n) notifyAdmins(`🔁 Avtomatik follow-up: agent ${n} ta mijozga qayta yozdi.`);
+  } catch (e) { console.error('avtomatik follow-up xatosi:', e.message); }
+}, 3 * 60 * 60 * 1000);
 
 console.log(`VizaAI bot ishga tushdi ✅ | Versiya: ${BOT_VERSION}`);
