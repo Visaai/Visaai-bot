@@ -1,7 +1,6 @@
-// agent.js — VizaAI AI sotuv agenti (faqat KURS sotish)
+// agent.js — VizaAI AI sotuv agenti (kuchli sotuvchi + chegirma + follow-up)
 //
-// Har bir foydalanuvchi bilan gaplashib, mos video kursni sotadi (karta orqali).
-// bot.js ichida ishlatiladi (INTEGRATSIYA allaqachon qilingan):
+// bot.js ichida ishlatiladi:
 //   const { createAgent } = require('./agent');
 //   const vizaAgent = createAgent({ anthropic, usersDB, getUser, getLang, saveDB,
 //     notifyAdmins, triggerCoursePurchase, recommendCourse, COURSE_CHANNELS, bot });
@@ -9,6 +8,7 @@
 const DEFAULT_MODEL = process.env.AGENT_MODEL || 'claude-sonnet-4-6';
 const MAX_TOOL_LOOPS = 5;
 const MAX_TOKENS = 600;
+const MAX_DISCOUNT = 20; // agent bera oladigan eng yuqori chegirma (%)
 
 function createAgent(deps) {
   const {
@@ -17,7 +17,7 @@ function createAgent(deps) {
   } = deps;
   const model = deps.model || DEFAULT_MODEL;
 
-  // ---------------- SYSTEM PROMPT ----------------
+  // ---------------- SYSTEM PROMPT (kuchli sotuv skripti) ----------------
   function buildSystem(lang, chatId) {
     const u = usersDB[String(chatId)] || {};
     const langName = lang === 'ru' ? 'ruscha (на русском)' : "o'zbekcha";
@@ -26,8 +26,12 @@ function createAgent(deps) {
     if (u.name) known.push(`Ism: ${u.name}`);
     if (u.interestedIn) known.push(`Qiziqishi: ${u.interestedIn}`);
     if (u.chanceScorePct != null) known.push(`Viza testi natijasi: ${u.chanceScorePct}%`);
+    const today = new Date().toISOString().slice(0, 10);
+    if (u.activeDiscount && u.activeDiscount.expiresAt === today) known.push(`Faol chegirma: ${u.activeDiscount.percent}%`);
     const confirmed = (u.purchases || []).filter(p => p.status === 'confirmed').map(p => p.name);
     if (confirmed.length) known.push(`Sotib olgan kurslari: ${confirmed.join(', ')}`);
+    const pending = (u.purchases || []).filter(p => p.status !== 'confirmed').map(p => p.name);
+    if (pending.length) known.push(`Kartani ko'rgan, lekin hali to'lamagan: ${pending.join(', ')}`);
     const knownBlock = known.length
       ? `\n\nMIJOZ HAQIDA BILGANLARING (qayta so'rama, hisobga ol):\n- ${known.join('\n- ')}\n`
       : '';
@@ -35,36 +39,48 @@ function createAgent(deps) {
     const courseList = Object.entries(COURSE_CHANNELS)
       .map(([k, c]) => `${k} = ${c.name} (${c.price})`).join('\n');
 
-    return `Sen — "VizaAI" (@VisaAi_Uz_Bot) ning shaxsiy konsultanti va savdo yordamchisisan.
-VizaAI odamlarga chet elga TURISTIK viza olishga tayyorgarlik ko'radigan video kurslar sotadi.
+    return `Sen — "VizaAI" (@VisaAi_Uz_Bot) ning eng kuchli savdo konsultantisan.
+Vazifang — odamlarga TURISTIK viza tayyorlov video kursimizni SOTISH. Samimiy, ishonchli, professional sotuvchisan.
 
-TIL: ${langName} tilida javob ber. Ohang — samimiy, tirik, ishonchli. Qisqa yoz (Telegram uchun, 1–4 jumla),
-oxirida bitta aniq keyingi qadam (CTA) bo'lsin. Emoji kam va o'rinli.
+TIL: ${langName} tilida yoz. Qisqa (Telegram, 1–4 jumla), jonli, oxirida aniq keyingi qadam (CTA). Emoji kam.
 
-SENING MAQSADING — KURS SOTISH:
-1) Iliq tanish, odam qaysi davlatga borishni orzu qilayotganini bil.
-2) O'sha davlatga mos video kursimizni foydaga bog'lab taklif qil (kurs hujjat, anketa, suhbat, moliyaviy
-   tayyorgarlikni o'rgatadi — agentlarga katta pul bermay, o'zi tayyorlaydi).
-3) Odam sotib olmoqchi bo'lsa yoki narx/to'lovni so'rasa — DARHOL 'offer_course' tool'ini chaqir.
-   Bu karta rekvizitini avtomatik ko'rsatadi. Narxni o'zingdan aytaverma — tool ko'rsatadi.
-4) Savol/e'tiroz bo'lsa — samimiy javob ber, lekin baribir kursga yo'naltir.
+SOTUV USULING (tabiiy, bosqichma-bosqich):
+1) TANISH + OG'RIQ: iliq salomlash, qaysi davlatni orzu qilishini bil. Og'riqni ochib ber —
+   vositachilar/agentlar 5–10 mln so'm oladi, baribir rad bo'lishi mumkin; eng ko'p rad sababi —
+   hujjatni noto'g'ri to'ldirish.
+2) YECHIM: bizning video kurs aynan shuni yechadi — hujjat, anketa, suhbat, moliyaviy tayyorgarlik,
+   bosqichma-bosqich, tushunarli. Odam o'zi to'g'ri tayyorlaydi, ortiqcha pul bermaydi.
+3) QO'SHIMCHA FOYDA (buni albatta eslat!): kursdan keyin odam viza sohasini shunchalik yaxshi
+   o'rganadiki, BOSHQALARGA ham yordam berib, o'zi viza maslahatchisi bo'lib DAROMAD qilishi mumkin.
+   Ya'ni kurs — nafaqat xarajat, balki kelajakda PUL ISHLASH imkoniyati/kasb. Buni tabiiy tarzda ayt.
+4) YOPISH: narx/to'lov so'ralsa yoki qiziqsa — DARHOL 'offer_course' chaqir (karta rekviziti chiqadi).
+5) E'TIROZ/IKKILANISH: "qimmat", "o'ylab ko'raman", "keyinroq" desa — 'give_discount' bilan chegirma ber
+   (avval 10%, juda kerak bo'lsa 20% gacha) va o'sha zahoti yopishga harakat qil. Muddat cheklanganini eslat.
+
+QUROLLARING (tool):
+- save_profile: ism/telefon/davlatni bilganda saqla.
+- offer_course: kurs sotish (karta rekviziti chiqadi). Narxni o'zing aytaverma — tool ko'rsatadi.
+- give_discount: mijoz ikkilansa/qimmat desa 5–20% chegirma ber (bugunga amal qiladi), keyin offer_course chaqir.
+- handoff_to_human: murakkab holat yoki inson so'rasa.
 
 MAVJUD KURS KALITLARI (offer_course uchun aynan shu key'lardan birini ber):
 ${courseList}
-
-Agar davlat aniq bo'lmasa yoki umumiy savol bo'lsa — "kurs_barchasi" (barcha kurslar paketi) ni taklif qil.
+Davlat aniq bo'lmasa yoki umumiy savol bo'lsa — "kurs_barchasi" (barcha kurslar paketi) ni taklif qil.
 ${knownBlock}
 QOIDALAR:
 - Vizani "100% olib beramiz" deb VA'DA BERMA. Yakuniy qaror konsullikda — halol ayt, lekin tayyorgarlik
-  shansni oshirishini tushuntir.
-- Soxta narx aytma. To'lov faqat KARTA orqali (offer_course ko'rsatadi, chekni admin @A_Sobirov39 ga yuboradi).
-- Bosim o'tkazma, spam qilma. "Yo'q" desa hurmat qil.
-- Mijoz inson bilan gaplashmoqchi bo'lsa yoki murakkab holat bo'lsa — 'handoff_to_human' chaqir.
-- Faqat viza/sayohat/kurs mavzusida gaplash.`;
+  shansni oshirishini tushuntir. "Pul ishlash" ni ham imkoniyat sifatida ayt, kafolat sifatida emas.
+- Chegirmani BEKORGA berma. Imkon qadar TO'LIQ narxda sot; faqat mijoz haqiqatan ikkilanганда, yopish
+  uchun chegirma ber. Hammaga 20% berma — kerakligicha (10% → keyin 20%).
+- Soxta narx aytma. To'lov faqat KARTA orqali (chekni admin @A_Sobirov39 ga yuboradi).
+- Bosim/spam yo'q. "Yo'q" desa hurmat qil, lekin eshikni ochiq qoldir.
+- Faqat viza/sayohat/kurs/soha mavzusida gaplash.`;
   }
 
-  const OUTREACH_UZ = "(Tizim: bu odam botdan ro'yxatdan o'tgan, lekin jim turibdi. Unga O'ZING birinchi bo'lib qisqa, iliq xabar yoz — tanish, qaysi davlatga borishni xohlashini so'ra, keyin mos kursni tabiiy taklif qil.)";
-  const OUTREACH_RU = "(Система: человек зарегистрирован в боте, но молчит. Напиши ему первым — коротко и тепло познакомься, спроси в какую страну хочет поехать, затем естественно предложи подходящий курс.)";
+  const OUTREACH_UZ = "(Tizim: bu odam botdan ro'yxatdan o'tgan, lekin jim turibdi. Unga O'ZING birinchi bo'lib qisqa, iliq xabar yoz — tanish, qaysi davlatga borishni xohlashini so'ra, keyin mos kursni tabiiy taklif qila boshla.)";
+  const OUTREACH_RU = "(Система: человек зарегистрирован, но молчит. Напиши первым — тепло познакомься, спроси в какую страну хочет, затем начни предлагать подходящий курс.)";
+  const FOLLOWUP_UZ = "(Tizim: bu mijoz avval siz bilan gaplashgan yoki kursni ko'rgan, lekin hali SOTIB OLMADI. Unga QAYTA iliq va qisqa yoz — bezovta qilmasdan turtki ber: savoli bormi, nima to'xtatyapti, yordam kerakmi. Agar o'rinli bo'lsa, bugungi cheklangan chegirmani eslat va yopishga harakat qil.)";
+  const FOLLOWUP_RU = "(Система: клиент уже общался или видел курс, но НЕ купил. Напиши ему ПОВТОРНО, тепло и коротко — без давления подтолкни: есть ли вопросы, что останавливает. Если уместно, напомни про сегодняшнюю скидку и попробуй закрыть.)";
 
   // ---------------- TOOLS ----------------
   const TOOLS = [
@@ -76,7 +92,7 @@ QOIDALAR:
         properties: {
           name: { type: 'string' },
           phone: { type: 'string' },
-          country: { type: 'string', description: 'Qaysi davlatga qiziqadi' },
+          country: { type: 'string' },
           note: { type: 'string' },
         },
       },
@@ -87,6 +103,15 @@ QOIDALAR:
       input_schema: {
         type: 'object',
         properties: { course_key: { type: 'string', description: 'Masalan kurs_yaponiya, kurs_barchasi' } },
+      },
+    },
+    {
+      name: 'give_discount',
+      description: "Mijoz ikkilansa yoki 'qimmat' desa — cheklangan chegirma berish (5–20%). Bugungi kunga amal qiladi. Keyin offer_course chaqir.",
+      input_schema: {
+        type: 'object',
+        properties: { percent: { type: 'integer', description: '5 dan 20 gacha' } },
+        required: ['percent'],
       },
     },
     {
@@ -110,13 +135,22 @@ QOIDALAR:
       return saved.length ? `Saqlandi: ${saved.join(', ')}` : "O'zgarish yo'q";
     }
 
+    if (name === 'give_discount') {
+      let pct = parseInt(args.percent, 10) || 0;
+      pct = Math.max(5, Math.min(MAX_DISCOUNT, pct));
+      const today = new Date().toISOString().slice(0, 10);
+      u.activeDiscount = { percent: pct, expiresAt: today };
+      saveDB();
+      return `${pct}% chegirma BUGUNGA faollashtirildi. Endi mijoz kurs sotib olsa, narx avtomatik ${pct}% tushadi. Mijozga shu chegirmani ayt va DARHOL offer_course chaqir.`;
+    }
+
     if (name === 'offer_course') {
       let key = args.course_key;
       if (!key || !COURSE_CHANNELS[key]) key = (recommendCourse ? recommendCourse(chatId) : 'kurs_barchasi');
       try {
         await triggerCoursePurchase(chatId, key, ctx.fromUser || { id: chatId });
         const c = COURSE_CHANNELS[key];
-        return `"${c.name}" (${c.price}) uchun karta rekvizitlari mijozga ko'rsatildi. Mijozga: to'lovdan so'ng chek skrinshotini @A_Sobirov39 ga yuborishini ayt.`;
+        return `"${c.name}" (${c.price}) uchun karta rekvizitlari mijozga ko'rsatildi (agar chegirma bo'lsa, narx avtomatik tushdi). Mijozga: to'lovdan so'ng chek skrinshotini @A_Sobirov39 ga yuborishini ayt.`;
       } catch (e) {
         return `Kurs oqimini ochib bo'lmadi: ${e.message}`;
       }
@@ -154,6 +188,7 @@ QOIDALAR:
     const history = loadHistory(chatId);
     let firstText = userText || '';
     if (opts.firstTouch) firstText = (lang === 'ru' ? OUTREACH_RU : OUTREACH_UZ);
+    else if (opts.followup) firstText = (lang === 'ru' ? FOLLOWUP_RU : FOLLOWUP_UZ);
     const messages = history.concat([{ role: 'user', content: firstText || '(salom)' }]);
 
     const ctx = { chatId, fromUser };
@@ -194,11 +229,11 @@ QOIDALAR:
     }
 
     if (!finalText) finalText = lang === 'ru' ? 'Хорошо!' : 'Yaxshi!';
-    saveHistory(chatId, opts.firstTouch ? '' : userText, finalText);
+    saveHistory(chatId, (opts.firstTouch || opts.followup) ? '' : userText, finalText);
     return { text: finalText };
   }
 
-  // ---------------- PROAKTIV: ro'yxatdan o'tgan, jim turganlarga o'zi yozadi ----------------
+  // ---------------- PROAKTIV: birinchi murojaat ----------------
   async function agentOutreach(chatId, fromUser) {
     const r = await runAgent(chatId, '', { fromUser, firstTouch: true });
     return r.text;
@@ -215,13 +250,43 @@ QOIDALAR:
         if (bot) await bot.sendMessage(chatId, text);
         u.agentOutreached = true; saveDB();
         sent++;
-        await new Promise(r => setTimeout(r, 500)); // flood-limitdan qochish
+        await new Promise(r => setTimeout(r, 500));
       } catch (e) { /* bloklagan bo'lishi mumkin */ }
     }
     return sent;
   }
 
-  return { runAgent, agentOutreach, outreachBatch, TOOLS };
+  // ---------------- FOLLOW-UP: sotib olmaganlarga qayta yozish ----------------
+  async function agentFollowup(chatId, fromUser) {
+    const r = await runAgent(chatId, '', { fromUser, followup: true });
+    return r.text;
+  }
+
+  async function followupBatch(limit = 30) {
+    const today = new Date().toISOString().slice(0, 10);
+    const targets = Object.entries(usersDB).filter(([, u]) => {
+      if (!u.phone || u.state === 'human') return false;
+      const bought = (u.purchases || []).some(p => p.status === 'confirmed');
+      if (bought) return false;                       // allaqachon sotib olgan
+      const engaged = u.agentOutreached || (u.agentHistory && u.agentHistory.length) || (u.purchases && u.purchases.length);
+      if (!engaged) return false;                     // hali aloqaga kirmagan (avval /agent_sell)
+      if (u.agentFollowupDate === today) return false; // bugun follow-up qilingan
+      return true;
+    }).slice(0, limit);
+    let sent = 0;
+    for (const [chatId, u] of targets) {
+      try {
+        const text = await agentFollowup(chatId, { id: Number(chatId) });
+        if (bot) await bot.sendMessage(chatId, text);
+        u.agentFollowupDate = today; saveDB();
+        sent++;
+        await new Promise(r => setTimeout(r, 500));
+      } catch (e) { /* bloklagan bo'lishi mumkin */ }
+    }
+    return sent;
+  }
+
+  return { runAgent, agentOutreach, outreachBatch, agentFollowup, followupBatch, TOOLS };
 }
 
 module.exports = { createAgent };
