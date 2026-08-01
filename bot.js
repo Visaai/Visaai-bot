@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-07-31-v17 (katta oqimga tayyor: outreach navbati + 2 soatlik admin xulosa)';
+const BOT_VERSION = '2026-07-31-v19 (AI hujjat tekshiruvi kuchaytirildi: elchixona mosligi + xatoliklar)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -63,6 +63,16 @@ const ADMIN_CONTACT_USERNAME = '@A_Sobirov39';
 // juft bo'lmasa butun xabarni buzadi. Shu sabab, Markdown ishlatiladigan joylarda
 // escaped (qochirilgan) versiyasidan foydalanamiz.
 const ADMIN_CONTACT_USERNAME_MD = ADMIN_CONTACT_USERNAME.replace(/_/g, '\\_');
+
+// ---------------------------------------------------------------
+// PRO PAKET REKLAMA AKSIYASI
+// Shu sanagacha "barcha kurslar paketi" (kurs_barchasi) 999 000 o'rniga 600 000 so'm.
+// To'xtatish uchun: active ni false qiling YOKI 'until' sanasini o'tkazib yuboring.
+// ---------------------------------------------------------------
+const PRO_PROMO = { active: true, price: 600000, until: '2026-08-15' };
+function proPromoActive() {
+  return PRO_PROMO.active && new Date().toISOString().slice(0, 10) <= PRO_PROMO.until;
+}
 
 // ---------------------------------------------------------------
 // FOYDALANUVCHILAR BAZASI
@@ -1016,13 +1026,23 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
   const hasActiveDiscount = u.activeDiscount && u.activeDiscount.expiresAt === today;
   const wheelPct = hasActiveDiscount ? u.activeDiscount.percent : 0;
   const referralPct = u.referredBy ? 5 : 0;           // do'st taklif qilingan bo'lsa 5% chegirma
-  const discountPct = Math.max(wheelPct, referralPct);
-  const priceNumBase = parseInt(course.price.replace(/[^\d]/g, ''), 10) || 0;
+  let discountPct = Math.max(wheelPct, referralPct);
+
+  // PRO paket reklama aksiyasi: 999k o'rniga 600k (faqat aksiya muddatida)
+  let priceNumBase = parseInt(course.price.replace(/[^\d]/g, ''), 10) || 0;
+  let promoNote = '';
+  if (key === 'kurs_barchasi' && proPromoActive()) {
+    priceNumBase = PRO_PROMO.price;   // 600 000
+    discountPct = 0;                  // aksiya narxi ustiga yana chegirma bermaymiz
+    promoNote = lang === 'ru'
+      ? `\n\n🔥 Рекламная цена: ${PRO_PROMO.price.toLocaleString('ru-RU')} сум вместо 999 000 — только на этой неделе!`
+      : `\n\n🔥 Reklama narxi: ${PRO_PROMO.price.toLocaleString('ru-RU')} so‘m (999 000 o‘rniga) — faqat shu hafta!`;
+  }
   const finalPriceNum = discountPct ? Math.round(priceNumBase * (1 - discountPct / 100)) : priceNumBase;
-  const displayPrice = discountPct ? `${finalPriceNum.toLocaleString('ru-RU')} so'm` : course.price;
-  const discountLine = discountPct
+  const displayPrice = (discountPct || promoNote) ? `${finalPriceNum.toLocaleString('ru-RU')} so'm` : course.price;
+  const discountLine = (discountPct
     ? (lang === 'ru' ? `\n\n🎁 Применена скидка ${discountPct}%!` : `\n\n🎁 ${discountPct}% chegirma qo'llandi!`)
-    : '';
+    : '') + promoNote;
 
   pendingPurchases.set(String(chatId), { kind: 'course', key, name, userLabel, discountPct });
   u.purchases.push({ key, name, price: displayPrice, status: 'pending', requestedAt: new Date().toISOString() });
@@ -1735,6 +1755,7 @@ const { createAgent } = require('./agent');
 const vizaAgent = createAgent({
   anthropic, usersDB, getUser, getLang, saveDB, notifyAdmins,
   triggerCoursePurchase, recommendCourse, COURSE_CHANNELS, bot,
+  proPromo: proPromoActive,
 });
 
 // Outreach navbati ishchisi — har 2.5 soniyada bittadan yozadi (1000 odam birdan kirsa ham urilmaydi)
@@ -1993,14 +2014,15 @@ bot.on('message', async (msg) => {
         const checklistText = country.items.map((it, i) => `${i + 1}. ${it[0]}`).join('\n');
         const response = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
-          max_tokens: 300,
-          system: `Siz hujjat tekshiruvchi AI'siz. Foydalanuvchi "${country.name}" vizasi uchun quyidagi hujjatlar ro'yxatidan birini yubordi:
+          max_tokens: 400,
+          system: `Siz "${country.name}" vizasi bo'yicha ekspert hujjat tekshiruvchisiz. Foydalanuvchi quyidagi hujjatlar ro'yxatidan birini yubordi:
 ${checklistText}
 
-Rasmni ko'rib, u YUQORIDAGI ro'yxatdagi QAYSI raqamga (band raqamiga) eng mos kelishini aniqlang.
+Rasmni diqqat bilan ko'rib, u YUQORIDAGI ro'yxatdagi QAYSI raqamga (band raqamiga) eng mos kelishini aniqlang,
+va shu hujjat "${country.name}" elchixonasi talabiga to'g'ri tayyorlanganmi — baholang.
 Javobingiz FAQAT shu formatda bo'lsin, boshqa hech narsa yozmang:
 BAND: <raqam yoki "0" agar mos kelmasa>
-SIFAT: <qisqa, 1 gap — aniq/sifatli yoki muammo bormi>`,
+SIFAT: <1-2 gap — hujjat aniq/sifatlimi; "${country.name}" uchun to'g'rimi; agar xatolik/muammo bo'lsa (xira, kesilgan, muddati o'tgan, balans kam, format noto'g'ri) aniq ayt va nima tuzatish kerakligini qo'sh>`,
           messages: [{
             role: 'user',
             content: [
@@ -2062,20 +2084,21 @@ SIFAT: <qisqa, 1 gap — aniq/sifatli yoki muammo bormi>`,
       stage = 'AI orqali tahlil qilish';
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 800,
-        system: `Siz hujjat tekshiruvchi va undan ma'lumot o'qib beruvchi AI'siz. ${lang === 'ru' ? 'Отвечайте на русском.' : "O'zbek tilida javob bering."}
-Rasmni diqqat bilan o'qib, ANIQ shu tuzilishda javob bering (sarlavhalarni saqlang):
+        max_tokens: 1000,
+        system: `Siz VizaAI ning viza hujjatlari bo'yicha ekspert tekshiruvchisiz. ${lang === 'ru' ? 'Отвечайте на русском.' : "O'zbek tilida javob bering."}
+Rasmdagi hujjatni diqqat bilan ko'rib chiqing va ANIQ shu tuzilishda javob bering (sarlavhalarni saqlang):
 
-📄 Hujjat turi: (pasport, ID karta, bank hujjati, anketa va h.k.)
-👤 F.I.Sh: (agar ko'rinsa)
-📅 Tug'ilgan sana:
-🔢 Hujjat raqami / PINFL:
-📆 Amal qilish muddati:
-✅ Sifat va muammolar: (aniqlik, yorug'lik, kesilmaganlik, muddati o'tganmi va h.k. — 1-2 gap)
-💡 Tavsiya: (1 gap)
+📄 Hujjat turi: (pasport, ID karta, bank ko'chirmasi, foto, anketa, spravka, sug'urta, aviabilet/bron va h.k.)
+🔎 O'qilgan ma'lumotlar: (ko'rinsa — F.I.Sh, sana, hujjat raqami/PINFL, amal muddati; ko'rinmasa "aniq emas")
+🌍 Qaysi viza uchun mos: (bu hujjat odatda qaysi davlat/elchixona talabiga tegishli — masalan Shengen, AQSH, Yaponiya, Buyuk Britaniya; universal bo'lsa "deyarli barcha viza turlari uchun")
+✅ Talablarga mosligi: (viza uchun to'g'ri tayyorlanganmi — masalan: pasport amal muddati 6 oydan ko'pmi; foto oq fonda, yaqin planда, 35x45mm ko'rinishdami; bank ko'chirmasi yetarli balans va 3-6 oy aylanmani ko'rsatyaptimi; muddati o'tmaganmi)
+⚠️ Muammolar/xatoliklar: (ANIQ nima noto'g'ri — xira, qorong'i, kesilgan, muddati o'tgan, balans kam, imzo/muhr yo'q, eski format va h.k. Muammo bo'lmasa "jiddiy muammo ko'rinmadi")
+💡 Tavsiya: (aniq nima qilish yoki tuzatish kerak — 1-2 gap)
 
-QOIDA: Agar biror maydonni rasmda aniq o'qiy olmasangiz, "aniq emas / ko'rinmayapti" deb yozing — hech qachon o'zingiz to'qib yozmang.
-Oxiriga albatta shuni qo'shing: "⚠️ Bu AI orqali o'qilgan ma'lumot, xatolik bo'lishi mumkin — muhim raqamlarni (PINFL, hujjat raqami) qo'lda solishtirib tekshiring. Bu rasmiy tekshiruv emas."`,
+QOIDALAR:
+- FAQAT rasmda ko'ringan narsani ayt. Ko'rinmasa "aniq emas / ko'rinmayapti" deb yoz — hech qachon o'zingdan to'qib yozma.
+- Aniq, foydali va halol bo'l. Viza berilishini HECH QACHON kafolatlama.
+- Oxiriga albatta shuni qo'sh: "⚠️ Bu AI tahlili, rasmiy tekshiruv emas — muhim raqamlarni (PINFL, hujjat raqami) qo'lda solishtirib tekshiring."`,
         messages: [{
           role: 'user',
           content: [
