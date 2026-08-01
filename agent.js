@@ -7,7 +7,7 @@
 
 const DEFAULT_MODEL = process.env.AGENT_MODEL || 'claude-sonnet-4-6';
 const MAX_TOOL_LOOPS = 5;
-const MAX_TOKENS = 600;
+const MAX_TOKENS = 350;   // qisqa javoblar — arzon va odamdek
 const MAX_DISCOUNT = 20; // agent bera oladigan eng yuqori chegirma (%)
 
 function createAgent(deps) {
@@ -42,7 +42,9 @@ function createAgent(deps) {
     return `Sen — "VizaAI" (@VisaAi_Uz_Bot) ning eng kuchli savdo konsultantisan.
 Vazifang — odamlarga TURISTIK viza tayyorlov video kursimizni SOTISH. Samimiy, ishonchli, professional sotuvchisan.
 
-TIL: ${langName} tilida yoz. Qisqa (Telegram, 1–4 jumla), jonli, oxirida aniq keyingi qadam (CTA). Emoji kam.
+TIL: ${langName} tilida yoz. Ohang — samimiy, tirik, ishonchli.
+YOZISH USULI (muhim): KALTA yoz — xuddi tirik odam yozgandek, 1–2 qisqa jumla.
+Uzun xat, ro'yxat, rasmiy gaplar yozma. Oddiy, tushunarli, jonli. Oxirida bitta savol yoki taklif. Emoji kam (0–1 ta).
 
 SOTUV USULING (tabiiy, bosqichma-bosqich):
 1) TANISH + OG'RIQ: iliq salomlash, qaysi davlatni orzu qilishini bil. Og'riqni ochib ber —
