@@ -7,7 +7,7 @@
 
 const DEFAULT_MODEL = process.env.AGENT_MODEL || 'claude-sonnet-4-6';
 const MAX_TOOL_LOOPS = 5;
-const MAX_TOKENS = 350;   // qisqa javoblar — arzon va odamdek
+const MAX_TOKENS = 250;   // qisqa javoblar — arzon va odamdek
 const MAX_DISCOUNT = 20; // agent bera oladigan eng yuqori chegirma (%)
 
 function createAgent(deps) {
@@ -17,29 +17,18 @@ function createAgent(deps) {
   } = deps;
   const model = deps.model || DEFAULT_MODEL;
 
-  // ---------------- SYSTEM PROMPT (kuchli sotuv skripti) ----------------
-  function buildSystem(lang, chatId) {
+  // ---------------- SYSTEM PROMPT (static qism keshlanadi -> arzon) ----------------
+  function buildSystemBlocks(lang, chatId) {
     const u = usersDB[String(chatId)] || {};
     const langName = lang === 'ru' ? 'ruscha (на русском)' : "o'zbekcha";
-
-    const known = [];
-    if (u.name) known.push(`Ism: ${u.name}`);
-    if (u.interestedIn) known.push(`Qiziqishi: ${u.interestedIn}`);
-    if (u.chanceScorePct != null) known.push(`Viza testi natijasi: ${u.chanceScorePct}%`);
-    const today = new Date().toISOString().slice(0, 10);
-    if (u.activeDiscount && u.activeDiscount.expiresAt === today) known.push(`Faol chegirma: ${u.activeDiscount.percent}%`);
-    const confirmed = (u.purchases || []).filter(p => p.status === 'confirmed').map(p => p.name);
-    if (confirmed.length) known.push(`Sotib olgan kurslari: ${confirmed.join(', ')}`);
-    const pending = (u.purchases || []).filter(p => p.status !== 'confirmed').map(p => p.name);
-    if (pending.length) known.push(`Kartani ko'rgan, lekin hali to'lamagan: ${pending.join(', ')}`);
-    const knownBlock = known.length
-      ? `\n\nMIJOZ HAQIDA BILGANLARING (qayta so'rama, hisobga ol):\n- ${known.join('\n- ')}\n`
-      : '';
-
     const courseList = Object.entries(COURSE_CHANNELS)
       .map(([k, c]) => `${k} = ${c.name} (${c.price})`).join('\n');
+    const promoBlock = (proPromo && proPromo())
+      ? `\n\n🔥 HOZIR REKLAMA AKSIYASI (faqat shu hafta!): "kurs_barchasi" paketi 999 000 emas — atigi 600 000 so'm.\nHar suhbatda buni eng kuchli ilinj sifatida ishlat: "Reklama narxi 600 ming, faqat shu hafta — keyin yana 999 ming bo'ladi." Shoshiltir (muddat tugayapti), lekin bosim o'tkazma.`
+      : '';
 
-    return `Sen — "VizaAI" (@VisaAi_Uz_Bot) ning eng kuchli savdo konsultantisan.
+    // STATIC — hamma foydalanuvchi uchun bir xil (til + aksiyaga qarab) -> keshlanadi
+    const staticText = `Sen — "VizaAI" (@VisaAi_Uz_Bot) ning eng kuchli savdo konsultantisan.
 Vazifang — odamlarga TURISTIK viza tayyorlov video kursimizni SOTISH. Samimiy, ishonchli, professional sotuvchisan.
 
 TIL: ${langName} tilida yoz. Ohang — samimiy, tirik, ishonchli.
@@ -72,19 +61,34 @@ QUROLLARING (tool):
 
 MAVJUD KURS KALITLARI (offer_course uchun aynan shu key'lardan birini ber):
 ${courseList}
-Standart tavsiya — "kurs_barchasi" (999 000 so'mlik paket). Faqat mijoz aniq bitta davlatni qat'iy so'rasa, o'sha bitta kursni ber.${(proPromo && proPromo()) ? `
+Standart tavsiya — "kurs_barchasi" (999 000 so'mlik paket). Faqat mijoz aniq bitta davlatni qat'iy so'rasa, o'sha bitta kursni ber.${promoBlock}
 
-🔥 HOZIR REKLAMA AKSIYASI (faqat shu hafta!): "kurs_barchasi" paketi 999 000 emas — atigi 600 000 so'm.
-Har suhbatda buni eng kuchli ilinj sifatida ishlat: "Reklama narxi 600 ming, faqat shu hafta — keyin yana 999 ming bo'ladi." Shoshiltir (muddat tugayapti), lekin bosim o'tkazma.` : ''}
-${knownBlock}
 QOIDALAR:
 - Vizani "100% olib beramiz" deb VA'DA BERMA. Yakuniy qaror konsullikda — halol ayt, lekin tayyorgarlik
   shansni oshirishini tushuntir. "Pul ishlash" ni ham imkoniyat sifatida ayt, kafolat sifatida emas.
-- Chegirmani BEKORGA berma. Imkon qadar TO'LIQ narxda sot; faqat mijoz haqiqatan ikkilanганда, yopish
+- Chegirmani BEKORGA berma. Imkon qadar TO'LIQ narxda sot; faqat mijoz haqiqatan ikkilanganda, yopish
   uchun chegirma ber. Hammaga 20% berma — kerakligicha (10% → keyin 20%).
 - Soxta narx aytma. To'lov faqat KARTA orqali (chekni admin @A_Sobirov39 ga yuboradi).
 - Bosim/spam yo'q. "Yo'q" desa hurmat qil, lekin eshikni ochiq qoldir.
 - Faqat viza/sayohat/kurs/soha mavzusida gaplash.`;
+
+    // DYNAMIC — har foydalanuvchiga xos (keshlanmaydi, lekin kichik)
+    const known = [];
+    if (u.name) known.push(`Ism: ${u.name}`);
+    if (u.interestedIn) known.push(`Qiziqishi: ${u.interestedIn}`);
+    if (u.chanceScorePct != null) known.push(`Viza testi natijasi: ${u.chanceScorePct}%`);
+    const today = new Date().toISOString().slice(0, 10);
+    if (u.activeDiscount && u.activeDiscount.expiresAt === today) known.push(`Faol chegirma: ${u.activeDiscount.percent}%`);
+    const confirmed = (u.purchases || []).filter(p => p.status === 'confirmed').map(p => p.name);
+    if (confirmed.length) known.push(`Sotib olgan kurslari: ${confirmed.join(', ')}`);
+    const pending = (u.purchases || []).filter(p => p.status !== 'confirmed').map(p => p.name);
+    if (pending.length) known.push(`Kartani ko'rgan, lekin hali to'lamagan: ${pending.join(', ')}`);
+
+    const blocks = [{ type: 'text', text: staticText, cache_control: { type: 'ephemeral' } }];
+    if (known.length) {
+      blocks.push({ type: 'text', text: `MIJOZ HAQIDA BILGANLARING (qayta so'rama, hisobga ol):\n- ${known.join('\n- ')}` });
+    }
+    return blocks;
   }
 
   const OUTREACH_UZ = "(Tizim: bu odam botdan ro'yxatdan o'tgan, lekin jim turibdi. Unga O'ZING birinchi bo'lib qisqa, iliq xabar yoz — tanish, qaysi davlatga borishni xohlashini so'ra, keyin mos kursni tabiiy taklif qila boshla.)";
@@ -178,14 +182,14 @@ QOIDALAR:
   // ---------------- TARIX (doimiy — matn ko'rinishida) ----------------
   function loadHistory(chatId) {
     const u = usersDB[String(chatId)] || {};
-    return (u.agentHistory || []).slice(-16).map(m => ({ role: m.role, content: m.content }));
+    return (u.agentHistory || []).slice(-10).map(m => ({ role: m.role, content: m.content }));
   }
   function saveHistory(chatId, userText, assistantText) {
     const u = getUser(chatId);
     u.agentHistory = (u.agentHistory || []);
     if (userText) u.agentHistory.push({ role: 'user', content: userText });
     if (assistantText) u.agentHistory.push({ role: 'assistant', content: assistantText });
-    u.agentHistory = u.agentHistory.slice(-16);
+    u.agentHistory = u.agentHistory.slice(-12);
     saveDB();
   }
 
@@ -209,7 +213,7 @@ QOIDALAR:
       try {
         resp = await anthropic.messages.create({
           model, max_tokens: MAX_TOKENS,
-          system: buildSystem(lang, chatId),
+          system: buildSystemBlocks(lang, chatId),
           tools: TOOLS,
           messages,
         });
@@ -280,7 +284,11 @@ QOIDALAR:
       if (bought) return false;                       // allaqachon sotib olgan
       const engaged = u.agentOutreached || (u.agentHistory && u.agentHistory.length) || (u.purchases && u.purchases.length);
       if (!engaged) return false;                     // hali aloqaga kirmagan (avval /agent_sell)
-      if (u.agentFollowupDate === today) return false; // bugun follow-up qilingan
+      // 2 kunda bir martadan ko'p follow-up qilmaymiz (arzon + bezovta qilmaydi)
+      if (u.agentFollowupDate) {
+        const daysSince = (Date.now() - new Date(u.agentFollowupDate + 'T00:00:00Z').getTime()) / 86400000;
+        if (daysSince < 2) return false;
+      }
       return true;
     }).slice(0, limit);
     let sent = 0;
