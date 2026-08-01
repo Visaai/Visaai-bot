@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-07-31-v19 (AI hujjat tekshiruvi kuchaytirildi: elchixona mosligi + xatoliklar)';
+const BOT_VERSION = '2026-07-31-v20 (600k aksiya hozircha O\'CHIQ — 999k; aksiya kuni yoqiladi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -69,7 +69,7 @@ const ADMIN_CONTACT_USERNAME_MD = ADMIN_CONTACT_USERNAME.replace(/_/g, '\\_');
 // Shu sanagacha "barcha kurslar paketi" (kurs_barchasi) 999 000 o'rniga 600 000 so'm.
 // To'xtatish uchun: active ni false qiling YOKI 'until' sanasini o'tkazib yuboring.
 // ---------------------------------------------------------------
-const PRO_PROMO = { active: true, price: 600000, until: '2026-08-15' };
+const PRO_PROMO = { active: false, price: 600000, until: '2026-08-15' };
 function proPromoActive() {
   return PRO_PROMO.active && new Date().toISOString().slice(0, 10) <= PRO_PROMO.until;
 }
