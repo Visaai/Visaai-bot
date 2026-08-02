@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-07-31-v21 (arzonlashtirildi: prompt caching + qisqa javob + follow-up 2 kunda)';
+const BOT_VERSION = '2026-07-31-v22 (jonli kuzatuv /live_on + /suhbat + tasdiqlangach kanal havolasi avto)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -590,6 +590,7 @@ const pendingPurchases = new Map();
 // 2) adminCounters — adminni har bir odam bilan bezovta qilmay, 2 soatlik xulosa yuboramiz
 const outreachQueue = [];
 const adminCounters = { reg: 0, chats: 0, offers: 0, sales: 0 };
+let liveMode = false;   // admin /live_on qilsa — har suhbat adminga nusxalanadi
 
 // ---------------------------------------------------------------
 // BIR-EKRAN NAVIGATSIYA — eski menyu xabari tahrirlanadi (uchib ketadi)
@@ -1582,6 +1583,18 @@ bot.onText(/\/tasdiqla (.+)/, async (msg, match) => {
 
   if (purchase.kind === 'course') {
     await bot.sendMessage(targetId, `${tt.payment_confirmed}\n\n"${purchase.name}" ${tt.join_channel}\n\n${tt.thanks}`);
+    // To'lov tasdiqlangach — yopiq kurs kanali havolasini AVTOMATIK yuboramiz
+    const courseObj = COURSE_CHANNELS[purchase.key];
+    const link = courseObj && courseObj.link;
+    if (link && !String(link).startsWith('HAVOLA')) {
+      const linkMsg = targetLang === 'ru'
+        ? `🎬 Ваш курс здесь (закрытый канал):\n${link}\n\nПереходите и начинайте!`
+        : `🎬 Kursingiz shu yerda (yopiq kanal):\n${link}\n\nKirib, boshlang!`;
+      await bot.sendMessage(targetId, linkMsg);
+    } else {
+      // Havola hali sozlanmagan — adminni ogohlantiramiz
+      notifyAdmins(`⚠️ "${purchase.name}" uchun kanal havolasi sozlanmagan (COURSE_CHANNELS.${purchase.key}.link). Mijozni qo'lda qo'shing.`);
+    }
   } else {
     await bot.sendMessage(targetId, `✅ "${purchase.name}" — ${tt.payment_confirmed_tour}`);
   }
@@ -1802,6 +1815,30 @@ bot.onText(/^\/agent_sell(?:\s+(\d+))?$/, async (msg, match) => {
 });
 
 // ADMIN: follow-up — kursni ko'rib/gaplashib, lekin SOTIB OLMAGANLARGA agent qayta yozadi
+// ADMIN: jonli kuzatuv — agent har suhbatда nima yozayotganini ko'rib turish
+bot.onText(/^\/live_on$/, (msg) => {
+  if (!isAdmin(msg.chat.id)) return;
+  liveMode = true;
+  bot.sendMessage(msg.chat.id, "🟢 Jonli kuzatuv YOQILDI. Endi agent har bir mijoz bilan nima gaplashsa — sizga nusxa keladi.\n\n⚠️ Reklama (ko'p odam) vaqtida ko'p xabar keladi — o'chirish uchun: /live_off");
+});
+bot.onText(/^\/live_off$/, (msg) => {
+  if (!isAdmin(msg.chat.id)) return;
+  liveMode = false;
+  bot.sendMessage(msg.chat.id, "⚪️ Jonli kuzatuv o'chirildi. (2 soatlik xulosa va /suhbat baribir ishlaydi.)");
+});
+
+// ADMIN: bitta mijozning agent bilan suhbatini ko'rish — /suhbat <user_id>
+bot.onText(/^\/suhbat[ _](\d+)$/, (msg, match) => {
+  if (!isAdmin(msg.chat.id)) return;
+  const uid = match[1];
+  const u = usersDB[uid];
+  if (!u || !u.agentHistory || !u.agentHistory.length) {
+    return bot.sendMessage(msg.chat.id, "Bu mijoz bilan hali agent suhbati yo'q.");
+  }
+  const last = u.agentHistory.slice(-12).map(m => (m.role === 'user' ? '🧑 ' : '🤖 ') + m.content).join('\n\n');
+  bot.sendMessage(msg.chat.id, `📜 ${u.name || 'Mijoz'} (${uid}) bilan suhbat:\n\n${last}`.slice(0, 4000));
+});
+
 // Foydalanish: /agent_followup  yoki  /agent_followup 50
 bot.onText(/^\/agent_followup(?:\s+(\d+))?$/, async (msg, match) => {
   if (!isAdmin(msg.chat.id)) return;
@@ -1812,8 +1849,7 @@ bot.onText(/^\/agent_followup(?:\s+(\d+))?$/, async (msg, match) => {
 });
 
 // ADMIN: agent statistikasi — konversiyani ko'rish
-bot.onText(/^\/agent_stats$/, (msg) => {
-  if (!isAdmin(msg.chat.id)) return;
+bot.onText(/^\/agent_stats$/, (msg) => {  if (!isAdmin(msg.chat.id)) return;
   const users = Object.values(usersDB);
   const messaged = users.filter(u => u.agentOutreached).length;
   const replied = users.filter(u => (u.agentHistory || []).some(m => m.role === 'user' && m.content)).length;
@@ -2180,6 +2216,10 @@ QOIDALAR:
       const reply = await vizaAgent.runAgent(chatId, text, { fromUser: msg.from });
       await sendContent(chatId, reply.text, { reply_markup: backButton(chatId) });
       adminCounters.chats++; // har bir suhbatni alohida emas — 2 soatlik xulosada ko'rsatamiz
+      // Jonli kuzatuv yoqilgan bo'lsa — suhbatni adminga nusxalaymiz
+      if (liveMode) {
+        notifyAdmins(`💬 ${userLabel}\n🧑 ${text}\n🤖 ${reply.text}`);
+      }
     } catch (err) {
       console.error('AI xatosi:', err);
       await sendContent(chatId, t.ai_error, { reply_markup: backButton(chatId) });
