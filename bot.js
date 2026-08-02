@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-07-31-v22 (jonli kuzatuv /live_on + /suhbat + tasdiqlangach kanal havolasi avto)';
+const BOT_VERSION = '2026-07-31-v23 (soddalashtirildi: menyu = test + AI + kurs; g\'ildirak/tur/xizmatlar/super-taklif olib tashlandi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -974,22 +974,13 @@ function mainMenuKeyboard(chatId) {
   const lang = getLang(chatId);
   const t = T[lang];
   const adminUrl = `https://t.me/${ADMIN_CONTACT_USERNAME.replace('@', '')}`;
-  const u = usersDB[String(chatId)];
-  const today = new Date().toISOString().slice(0, 10);
-  const wheelAvailable = !u || u.lastWheelSpin !== today;
-  const wheelLabel = wheelAvailable
-    ? (lang === 'ru' ? '🎰 Колесо удачи — крутить!' : "🎰 Omad g'ildiragi — aylantiring!")
-    : (lang === 'ru' ? '🎰 Колесо удачи (завтра снова)' : "🎰 Omad g'ildiragi (ertaga yana)");
   return {
     inline_keyboard: [
-      [{ text: t.menu_featured, callback_data: 'buy_course_kurs_barchasi' }],
-      [{ text: wheelLabel, callback_data: 'lucky_wheel' }],
       [{ text: t.menu_chance, callback_data: 'chance' }],
-      [{ text: t.menu_services, callback_data: 'services' }, { text: t.menu_docs, callback_data: 'docs' }],
-      [{ text: t.menu_courses, callback_data: 'courses' }, { text: t.menu_tours, callback_data: 'tours' }],
-      [{ text: t.menu_ai, callback_data: 'ai' }, { text: t.menu_other, callback_data: 'other' }],
+      [{ text: t.menu_ai, callback_data: 'ai_menu' }],
+      [{ text: t.menu_courses, callback_data: 'courses' }],
+      [{ text: t.menu_other, callback_data: 'other' }],
       [{ text: t.menu_admin, url: adminUrl }],
-      [{ text: t.menu_lang, callback_data: 'lang' }],
     ],
   };
 }
@@ -1108,17 +1099,6 @@ async function handleStartPayload(chatId, payload, fromUser) {
     rows.push([{ text: t.to_menu, callback_data: 'menu' }]);
     const head = `${t.courses_head}\n\n${SINGLE_COURSE_DESC[lang]}\n\n🔥 ${lang === 'ru' ? 'Пакет всех курсов' : 'Barcha kurslar paketi'} (999 000):\n${lang === 'ru' ? COURSE_CHANNELS.kurs_barchasi.descRu : COURSE_CHANNELS.kurs_barchasi.desc}`;
     return renderScreen(chatId, head, { inline_keyboard: rows });
-  }
-
-  // Tur paketlar ro'yxati
-  if (payload === 'tours') {
-    const lang = getLang(chatId);
-    const t = T[lang];
-    const rows = Object.entries(TOUR_PACKAGES).map(([key, c]) => (
-      [{ text: `${lang === 'ru' ? c.nameRu : c.name} — ${c.price}`, callback_data: `buy_tour_${key}` }]
-    ));
-    rows.push([{ text: t.to_menu, callback_data: 'menu' }]);
-    return renderScreen(chatId, t.tours_head, { inline_keyboard: rows });
   }
 
   // Premium konsultatsiya — lid: ism so'raladi
@@ -1272,40 +1252,6 @@ bot.on('callback_query', async (query) => {
     return finishOrAdvanceChance(chatId, s, lang, t);
   }
 
-  // ---- Viza xizmatlari ----
-  if (data === 'services') {
-    return renderScreen(chatId, t.services_head, { inline_keyboard: [
-      [{ text: '✈️ Sayohat viza', callback_data: 'svc_travel' }],
-      [{ text: '❓ FAQ', callback_data: 'svc_faq' }],
-      [{ text: t.to_menu, callback_data: 'menu' }],
-    ] });
-  }
-  if (data === 'svc_travel') {
-    const rows = COUNTRIES.map(c => ([{ text: `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}`, callback_data: `chk_travel_${c.key}` }]));
-    rows.push([{ text: t.back, callback_data: 'services' }]);
-    return renderScreen(chatId, t.svc_travel_head, { inline_keyboard: rows });
-  }
-  if (data.startsWith('chk_travel_')) {
-    const c = COUNTRIES.find(x => x.key === data.replace('chk_travel_', ''));
-    if (!c) return;
-    const u = getUser(chatId);
-    u.interestedIn = `${c.name} (sayohat viza)`;
-    saveDB();
-    const list = c.items.map((it, i) => `${i + 1}. ${lang === 'ru' ? it[1] : it[0]} — ${lang === 'ru' ? it[3] : it[2]}`).join('\n');
-    return renderScreen(chatId, `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}\n\n${list}`, backButton(chatId, 'svc_travel'));
-  }
-  if (data === 'svc_faq') {
-    const rows = FAQ_DATA.map((f, i) => ([{ text: lang === 'ru' ? f[2] : f[0], callback_data: `faq_${i}` }]));
-    rows.push([{ text: t.back, callback_data: 'services' }]);
-    return renderScreen(chatId, t.faq_head, { inline_keyboard: rows });
-  }
-  if (data.startsWith('faq_')) {
-    const item = FAQ_DATA[+data.replace('faq_', '')];
-    if (!item) return;
-    const q = lang === 'ru' ? item[2] : item[0], a = lang === 'ru' ? item[3] : item[1];
-    return renderScreen(chatId, `❓ ${q}\n\n${a}`, backButton(chatId, 'svc_faq'));
-  }
-
   // ---- Hujjatni AI tekshirish ----
   if (data === 'docs') {
     const rows = COUNTRIES.map(c => ([{ text: `${c.flag} ${lang === 'ru' ? c.nameRu : c.name}`, callback_data: `doccheck_${c.key}` }]));
@@ -1375,86 +1321,28 @@ bot.on('callback_query', async (query) => {
     const head = `${t.courses_head}\n\n${SINGLE_COURSE_DESC[lang]}\n\n🔥 ${lang === 'ru' ? 'Пакет всех курсов' : 'Barcha kurslar paketi'} (999 000):\n${lang === 'ru' ? COURSE_CHANNELS.kurs_barchasi.descRu : COURSE_CHANNELS.kurs_barchasi.desc}`;
     return renderScreen(chatId, head, { inline_keyboard: rows });
   }
-  if (data === 'tours') {
-    const rows = Object.entries(TOUR_PACKAGES).map(([key, c]) => (
-      [{ text: `${lang === 'ru' ? c.nameRu : c.name} — ${c.price}`, callback_data: `buy_tour_${key}` }]
-    ));
-    rows.push([{ text: t.to_menu, callback_data: 'menu' }]);
-    return renderScreen(chatId, t.tours_head, { inline_keyboard: rows });
-  }
   if (data.startsWith('buy_course_')) {
     const key = data.replace('buy_course_', '');
     return triggerCoursePurchase(chatId, key, query.from);
   }
-  if (data.startsWith('buy_tour_')) {
-    const key = data.replace('buy_tour_', '');
-    const tour = TOUR_PACKAGES[key];
-    if (!tour) return;
-    const name = lang === 'ru' ? tour.nameRu : tour.name;
-    const userLabel = `${query.from.first_name || ''} (@${query.from.username || 'username yo\'q'}, ID: ${chatId})`;
-    pendingPurchases.set(String(chatId), { kind: 'tour', key, name, userLabel });
 
-    const u = getUser(chatId);
-    u.purchases.push({ key, name, price: tour.price, status: 'pending', requestedAt: new Date().toISOString() });
-    saveDB();
-
-    await renderScreen(chatId, `"${name}" — ${tour.price} 🧳\n\n${t.tour_request_ok}`, backButton(chatId, 'tours'));
-    u.interestedIn = `${name} (tur paket)`;
-    saveDB();
-    return;
-  }
-
-  // ---- AI yordamchi ----
-  if (data === 'ai') {
-    getState(chatId).mode = 'ai';
-    return renderScreen(chatId, t.ask_ai_prompt, backButton(chatId));
-  }
-
-  // ---- Boshqa imkoniyatlar ----
-  if (data === 'lucky_wheel') {
-    const u = getUser(chatId);
-    const today = new Date().toISOString().slice(0, 10);
-    if (u.lastWheelSpin === today) {
-      const already = lang === 'ru'
-        ? "🎰 Вы уже крутили колесо сегодня! Возвращайтесь завтра за новым призом."
-        : "🎰 Siz bugun allaqachon g'ildirakni aylantirdingiz! Ertaga yangi sovg'a uchun qayting.";
-      return renderScreen(chatId, already, backButton(chatId));
-    }
-    u.lastWheelSpin = today;
-
-    // Sovg'alar: ehtimollik og'irligi bilan
-    const roll = Math.random() * 100;
-    let prizeText, prizeTextRu;
-    if (roll < 35) {
-      prizeText = "😔 Bu safar hech narsa chiqmadi. Ertaga qayta urinib ko'ring!";
-      prizeTextRu = "😔 На этот раз ничего не выпало. Попробуйте завтра снова!";
-    } else if (roll < 60) {
-      u.aiBonusDate = today;
-      u.aiBonusToday = (u.aiBonusDate === today ? (u.aiBonusToday || 0) : 0) + 2;
-      prizeText = "🎁 Tabriklaymiz! +2 ta bonus AI savol yutdingiz — bugun ishlatishingiz mumkin!";
-      prizeTextRu = "🎁 Поздравляем! Вы выиграли +2 бонусных вопроса к AI — можно использовать сегодня!";
-    } else if (roll < 80) {
-      u.activeDiscount = { percent: 5, expiresAt: today };
-      prizeText = "🎁 Tabriklaymiz! Bugun istalgan kursga 5% chegirma yutdingiz!";
-      prizeTextRu = "🎁 Поздравляем! Вы выиграли скидку 5% на любой курс сегодня!";
-    } else if (roll < 95) {
-      u.activeDiscount = { percent: 10, expiresAt: today };
-      prizeText = "🎉 Ajoyib! Bugun istalgan kursga 10% chegirma yutdingiz!";
-      prizeTextRu = "🎉 Отлично! Вы выиграли скидку 10% на любой курс сегодня!";
-    } else {
-      u.activeDiscount = { percent: 15, expiresAt: today };
-      prizeText = "🏆 KATTA YUTUQ! Bugun istalgan kursga 15% chegirma yutdingiz!!!";
-      prizeTextRu = "🏆 ГЛАВНЫЙ ПРИЗ! Вы выиграли скидку 15% на любой курс сегодня!!!";
-    }
-    saveDB();
-
-    const text = (lang === 'ru' ? prizeTextRu : prizeText) +
-      (lang === 'ru' ? "\n\nВозвращайтесь завтра за новым призом!" : "\n\nErtaga yangi sovg'a uchun qayting!");
-    return renderScreen(chatId, `🎰\n\n${text}`, { inline_keyboard: [
-      [{ text: lang === 'ru' ? '🎬 Смотреть курсы' : "🎬 Kurslarni ko'rish", callback_data: 'courses' }],
+  // ---- AI yordamchi (bitta tugma -> ichida: savol + hujjat tekshirish) ----
+  if (data === 'ai_menu') {
+    const head = lang === 'ru' ? 'AI-помощник — что сделаем?' : 'AI yordamchi — nima qilamiz?';
+    const askLabel = lang === 'ru' ? '💬 Задать вопрос' : '💬 Savol berish';
+    const docLabel = lang === 'ru' ? '📸 Проверить документ' : '📸 Hujjatni tekshirish';
+    return renderScreen(chatId, head, { inline_keyboard: [
+      [{ text: askLabel, callback_data: 'ai' }],
+      [{ text: docLabel, callback_data: 'docs' }],
       [{ text: t.to_menu, callback_data: 'menu' }],
     ] });
   }
+  if (data === 'ai') {
+    getState(chatId).mode = 'ai';
+    return renderScreen(chatId, t.ask_ai_prompt, backButton(chatId, 'ai_menu'));
+  }
+
+  // ---- Boshqa imkoniyatlar ----
   if (data === 'other') {
     return renderScreen(chatId, t.other_head, { inline_keyboard: [
       [{ text: lang === 'ru' ? '👤 Мой профиль' : '👤 Mening profilim', callback_data: 'my_profile' }],
