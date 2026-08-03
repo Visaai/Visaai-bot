@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v33 (agent: aniq 15 davlat, faqat turistik, JUDA kalta javob, token tejash)';
+const BOT_VERSION = '2026-08-02-v34 (tezlik: bloklovchi saqlash olib tashlandi + outreach tezlashdi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -150,17 +150,16 @@ function flushDB() {
   if (!allDirty && _dbDirtyIds.size === 0) return;
   _dbAllDirty = false;
   const ids = [..._dbDirtyIds]; _dbDirtyIds.clear();
-  try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(usersDB));
-  } catch (e) {
-    console.error("Baza saqlashda xato (fayl):", e.message);
-  }
   if (mongoCollection) {
+    // Mongo bor — asosiy saqlash shu (fayl shart emas, bloklovchi yozuvni qilmaymiz)
     const entries = allDirty ? Object.entries(usersDB) : ids.filter(id => usersDB[id]).map(id => [id, usersDB[id]]);
     const ops = entries.map(([chatId, data]) => ({
       updateOne: { filter: { _id: chatId }, update: { $set: data }, upsert: true },
     }));
     if (ops.length) mongoCollection.bulkWrite(ops).catch(e => console.error('MongoDB saqlashda xato:', e.message));
+  } else {
+    // Mongo yo'q — zaxira faylga, ASINXRON (event loop'ni bloklamaydi)
+    fs.writeFile(DB_FILE, JSON.stringify(usersDB), err => { if (err) console.error("Baza saqlashda xato (fayl):", err.message); });
   }
 }
 function saveDB(chatId) {
@@ -1748,7 +1747,7 @@ const vizaAgent = createAgent({
   proPromo: proPromoActive,
 });
 
-// Outreach navbati ishchisi — har 2.5 soniyada bittadan yozadi (1000 odam birdan kirsa ham urilmaydi)
+// Outreach navbati ishchisi — har 1.2 soniyada bittadan yozadi (1000-1500 odam/kunga yetadi, limitga urilmaydi)
 setInterval(async () => {
   const now = Date.now();
   const idx = outreachQueue.findIndex(it => it.readyAt <= now);
@@ -1759,9 +1758,9 @@ setInterval(async () => {
   try {
     const txt = await vizaAgent.agentOutreach(item.chatId, item.fromUser);
     await bot.sendMessage(item.chatId, txt);
-    uu.agentOutreached = true; saveDB();
+    uu.agentOutreached = true; saveDB(item.chatId);
   } catch (e) { /* bloklagan bo'lishi mumkin */ }
-}, 2500);
+}, 1200);
 
 // Admin hisoboti — HAR SOATDA (kunduzi): umumiy son + har bir faol mijoz haqida qisqacha
 setInterval(() => {
