@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v31 (agent: e\'tiroz javoblari + xarid signali yopish + bosqichli follow-up)';
+const BOT_VERSION = '2026-08-02-v32 (ishonchlilik: chek yo\'qolmaydi + tez saqlash; katta oqimga chidamli)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -86,7 +86,8 @@ async function sendCourseAccess(targetId) {
   if (u) {
     const rec = [...(u.purchases || [])].reverse().find(p => p.status === 'pending' && (!purchase || p.key === purchase.key));
     if (rec) { rec.status = 'confirmed'; rec.confirmedAt = new Date().toISOString(); }
-    saveDB();
+    delete u.pendingPurchase;
+    saveDBNow(targetId);
   }
   const key = purchase ? purchase.key : null;
   const courseObj = key ? COURSE_CHANNELS[key] : null;
@@ -139,23 +140,37 @@ function loadDB() {
     return {};
   }
 }
-function saveDB() {
-  // 1) Fayl orqali — tezkor, zaxira sifatida
+// Saqlash: har o'zgarishda emas, yig'ib (debounce) yoziladi — katta oqimda tez ishlaydi.
+// Muhim (to'lov) o'zgarishlar uchun saveDBNow() darhol yozadi.
+let _dbTimer = null, _dbAllDirty = false;
+const _dbDirtyIds = new Set();
+function flushDB() {
+  _dbTimer = null;
+  const allDirty = _dbAllDirty;
+  if (!allDirty && _dbDirtyIds.size === 0) return;
+  _dbAllDirty = false;
+  const ids = [..._dbDirtyIds]; _dbDirtyIds.clear();
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(usersDB, null, 2));
+    fs.writeFileSync(DB_FILE, JSON.stringify(usersDB));
   } catch (e) {
     console.error("Baza saqlashda xato (fayl):", e.message);
   }
-  // 2) MongoDB orqali — haqiqiy doimiy saqlash (agar sozlangan bo'lsa)
   if (mongoCollection) {
-    const ops = Object.entries(usersDB).map(([chatId, data]) => ({
+    const entries = allDirty ? Object.entries(usersDB) : ids.filter(id => usersDB[id]).map(id => [id, usersDB[id]]);
+    const ops = entries.map(([chatId, data]) => ({
       updateOne: { filter: { _id: chatId }, update: { $set: data }, upsert: true },
     }));
-    if (ops.length) {
-      mongoCollection.bulkWrite(ops).catch(e => console.error('MongoDB saqlashda xato:', e.message));
-    }
+    if (ops.length) mongoCollection.bulkWrite(ops).catch(e => console.error('MongoDB saqlashda xato:', e.message));
   }
 }
+function saveDB(chatId) {
+  if (chatId != null) _dbDirtyIds.add(String(chatId)); else _dbAllDirty = true;
+  if (!_dbTimer) _dbTimer = setTimeout(flushDB, 1500);
+}
+function saveDBNow(chatId) { saveDB(chatId); flushDB(); }   // to'lov kabi muhim o'zgarishlar uchun
+setInterval(() => flushDB(), 8000);                         // xavfsizlik: har 8 soniyada yozib qo'yamiz
+process.on('SIGTERM', () => flushDB());                     // Render qayta ishga tushishidan oldin saqlaymiz
+process.on('SIGINT', () => { flushDB(); process.exit(0); });
 let usersDB = loadDB(); // { [chatId]: { name, username, phone, joinedAt, promoCode, referredBy, purchases:[], callNote } }
 
 async function initMongoDB() {
@@ -1106,6 +1121,10 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
   const card = nextCard();
   const pend = pendingPurchases.get(String(chatId));
   if (pend) { pend.card = `${card.number} (${card.bank})`; }
+  // Kutilayotgan to'lovni DOIMIY saqlaymiz — bot qayta ishga tushsa ham chek yo'qolmaydi
+  const uPend = getUser(chatId);
+  uPend.pendingPurchase = { kind: 'course', key, name, price: displayPrice, card: `${card.number} (${card.bank})`, at: Date.now() };
+  saveDBNow(chatId);
   const cardBlock = lang === 'ru'
     ? `💳 Карта (нажмите, чтобы скопировать):\n\`${card.number}\`\n👤 ${card.holder} · ${card.bank}`
     : `💳 Karta (bosib nusxalang):\n\`${card.number}\`\n👤 ${card.holder} · ${card.bank}`;
@@ -1229,7 +1248,7 @@ bot.on('callback_query', async (query) => {
   if (data.startsWith('paycheck_ok_')) {
     if (!isAdmin(chatId)) return;
     const uid = data.replace('paycheck_ok_', '');
-    if (!pendingPurchases.has(String(uid))) {
+    if (!pendingPurchases.has(String(uid)) && !(usersDB[uid] && usersDB[uid].pendingPurchase)) {
       return bot.sendMessage(chatId, `Bu mijoz (${uid}) allaqachon tasdiqlangan yoki bekor qilingan.`);
     }
     await sendCourseAccess(uid);
@@ -2003,13 +2022,14 @@ bot.on('message', async (msg) => {
   const isImageDocument = msg.document && msg.document.mime_type && msg.document.mime_type.startsWith('image/');
 
   // ---- TO'LOV CHEKI — AI summa va sanani TEKSHIRADI, keyin qaror qiladi ----
-  if ((msg.photo || msg.document) && pendingPurchases.has(String(chatId))) {
-    const purchase = pendingPurchases.get(String(chatId));
+  const persistedPending = usersDB[String(chatId)] && usersDB[String(chatId)].pendingPurchase;
+  if ((msg.photo || msg.document) && (pendingPurchases.has(String(chatId)) || persistedPending)) {
+    const purchase = pendingPurchases.get(String(chatId)) || persistedPending;
     const fileId = msg.photo ? msg.photo[msg.photo.length - 1].file_id : msg.document.file_id;
 
     const uu = usersDB[String(chatId)];
     const lastPend = (uu.purchases || []).slice().reverse().find(p => p.status !== 'confirmed');
-    const expectedStr = lastPend ? lastPend.price : '';
+    const expectedStr = purchase.price || (lastPend ? lastPend.price : '');
     const expectedNum = parseInt(String(expectedStr).replace(/[^\d]/g, ''), 10) || 0;
     const todayStr = new Date().toISOString().slice(0, 10);
 
