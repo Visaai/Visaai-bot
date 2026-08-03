@@ -223,7 +223,7 @@ QOIDALAR:
     if (userText) u.agentHistory.push({ role: 'user', content: userText });
     if (assistantText) u.agentHistory.push({ role: 'assistant', content: assistantText });
     u.agentHistory = u.agentHistory.slice(-12);
-    saveDB();
+    saveDB(chatId);
   }
 
   // ---------------- ASOSIY: bitta xabarni qayta ishlash ----------------
