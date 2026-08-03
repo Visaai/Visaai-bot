@@ -6,7 +6,7 @@
 //     notifyAdmins, triggerCoursePurchase, recommendCourse, COURSE_CHANNELS, bot });
 
 const DEFAULT_MODEL = process.env.AGENT_MODEL || 'claude-haiku-4-5-20251001';
-const MAX_TOOL_LOOPS = 5;
+const MAX_TOOL_LOOPS = 3;   // kam so'rov = tez + arzon (rate-limitga kam uriladi)
 const MAX_TOKENS = 200;   // juda kalta javoblar — token tejash
 const MAX_DISCOUNT = 20; // agent bera oladigan eng yuqori chegirma (%)
 
