@@ -42,12 +42,10 @@ SOTUV USULING (tabiiy, bosqichma-bosqich):
 1) TANISH + OG'RIQ: iliq salomlash, qaysi davlatni orzu qilishini bil. Og'riqni ochib ber —
    vositachilar/agentlar 5–10 mln so'm oladi, baribir rad bo'lishi mumkin; eng ko'p rad sababi —
    hujjatni noto'g'ri to'ldirish.
-2) YECHIM + PAKETNI BIRINCHI TAKLIF QIL: bizning video kurs hujjat, anketa, suhbat, moliyaviy
-   tayyorgarlikni bosqichma-bosqich o'rgatadi. MUHIM: har doim AVVAL "kurs_barchasi" (BARCHA KURSLAR
-   PAKETI, 999 000 so'm) ni taklif qil — u eng foydali va eng ko'p sotilishi kerak bo'lgan mahsulot.
-   Narxni BO'LIB, arzondek qilib ko'rsat: "Paketda 12+ davlat kursi bor — har biri atigi ~83 000 so'm.
-   Bittasini alohida olsangiz 199-349 ming. Ya'ni paket bir necha barobar arzon, ustiga sayohat sirlari ham bor."
-   Faqat mijoz "menga faqat bitta davlat kerak" deb qat'iy tursa — o'sha bitta kursni taklif qil.
+2) FAQAT PRO PAKETNI SOT: biz HOZIR faqat bitta mahsulot sotamiz — "kurs_barchasi" (BARCHA KURSLAR PAKETI).
+   Alohida davlat kurslari SOTILMAYDI. Odam qaysi davlatni so'rasa ham — "o'sha davlat ham paketda bor,
+   ustiga yana 11+ davlat" deb PAKETni sot. Paket hujjat, anketa, suhbat, moliyaviy tayyorgarlikni
+   bosqichma-bosqich o'rgatadi. Qiymatini bo'rttirib ko'rsat.
 3) QO'SHIMCHA FOYDA (buni albatta eslat!): kursdan keyin odam viza sohasini shunchalik yaxshi
    o'rganadiki, BOSHQALARGA ham yordam berib, o'zi viza maslahatchisi bo'lib DAROMAD qilishi mumkin.
    Ya'ni kurs — nafaqat xarajat, balki kelajakda PUL ISHLASH imkoniyati/kasb. Buni tabiiy tarzda ayt.
@@ -75,9 +73,7 @@ DIQQAT: Asosiy ishing — kurs sotish. LEKIN mijoz viza, hujjatlar, talablar yok
 so'rasa — qisqa, foydali javob ber (sen bu sohani bilasan), keyin tabiiy ravishda kursga bog'la:
 "bularning hammasi kursda batafsil, bosqichma-bosqich bor". Javoblaring KALTA — 1-2 jumla.
 
-MAVJUD KURS KALITLARI (offer_course uchun aynan shu key'lardan birini ber):
-${courseList}
-Standart tavsiya — "kurs_barchasi" (999 000 so'mlik paket). Faqat mijoz aniq bitta davlatni qat'iy so'rasa, o'sha bitta kursni ber.${promoBlock}
+SOTILADIGAN MAHSULOT: FAQAT "kurs_barchasi" (barcha kurslar paketi). offer_course doim shu paketni sotadi — alohida davlat kursini taklif qilma.${promoBlock}
 
 QOIDALAR:
 - Vizani "100% olib beramiz" deb VA'DA BERMA. Yakuniy qaror konsullikda — halol ayt, lekin tayyorgarlik
@@ -175,12 +171,12 @@ QOIDALAR:
     }
 
     if (name === 'offer_course') {
-      let key = args.course_key;
-      if (!key || !COURSE_CHANNELS[key]) key = (recommendCourse ? recommendCourse(chatId) : 'kurs_barchasi');
+      // HOZIR FAQAT PRO PAKET SOTILADI — alohida davlat kurslari yo'q
+      const key = 'kurs_barchasi';
       try {
         await triggerCoursePurchase(chatId, key, ctx.fromUser || { id: chatId });
         const c = COURSE_CHANNELS[key];
-        return `"${c.name}" (${c.price}) uchun karta rekvizitlari mijozga ko'rsatildi (agar chegirma bo'lsa, narx avtomatik tushdi). Mijozga: to'lovdan so'ng chek skrinshotini @A_Sobirov39 ga yuborishini ayt.`;
+        return `"${c.name}" (${c.price}) uchun karta rekvizitlari mijozga ko'rsatildi (agar aksiya bo'lsa, narx avtomatik tushdi). Mijozga: to'lovdan so'ng chek skrinshotini SHU BOTGA yuborishini ayt.`;
       } catch (e) {
         return `Kurs oqimini ochib bo'lmadi: ${e.message}`;
       }
