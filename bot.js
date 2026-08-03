@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-07-31-v23 (soddalashtirildi: menyu = test + AI + kurs; g\'ildirak/tur/xizmatlar/super-taklif olib tashlandi)';
+const BOT_VERSION = '2026-08-02-v24 (hujjat tekshiruvi ham Haiku-da — maksimal tejash; Sonnet ishlatilmaydi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -53,6 +53,8 @@ function notifyAdmins(text) {
   });
 }
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// Hujjat tekshiruvi modeli — tejash uchun Haiku (xohlasangiz Render'da DOC_MODEL bilan o'zgartirasiz)
+const DOC_MODEL = process.env.DOC_MODEL || 'claude-haiku-4-5-20251001';
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
 const SITE_URL = 'https://vizaai.uz';
@@ -66,12 +68,13 @@ const ADMIN_CONTACT_USERNAME_MD = ADMIN_CONTACT_USERNAME.replace(/_/g, '\\_');
 
 // ---------------------------------------------------------------
 // PRO PAKET REKLAMA AKSIYASI
-// Shu sanagacha "barcha kurslar paketi" (kurs_barchasi) 999 000 o'rniga 600 000 so'm.
-// To'xtatish uchun: active ni false qiling YOKI 'until' sanasini o'tkazib yuboring.
+// Aksiya AVTOMATIK: 'from' sanadan 'until' sanagacha 999 000 o'rniga 600 000 so'm.
+// Chorshanba (5-avgust) o'zi yonadi, bir haftadan keyin o'zi o'chadi — qo'lda tegish shart emas.
 // ---------------------------------------------------------------
-const PRO_PROMO = { active: false, price: 600000, until: '2026-08-15' };
+const PRO_PROMO = { active: true, price: 600000, from: '2026-08-05', until: '2026-08-12' };
 function proPromoActive() {
-  return PRO_PROMO.active && new Date().toISOString().slice(0, 10) <= PRO_PROMO.until;
+  const today = new Date().toISOString().slice(0, 10);
+  return PRO_PROMO.active && today >= PRO_PROMO.from && today <= PRO_PROMO.until;
 }
 
 // ---------------------------------------------------------------
@@ -1937,7 +1940,7 @@ bot.on('message', async (msg) => {
         stage = 'AI orqali checklistga solishtirish';
         const checklistText = country.items.map((it, i) => `${i + 1}. ${it[0]}`).join('\n');
         const response = await anthropic.messages.create({
-          model: 'claude-sonnet-4-6',
+          model: DOC_MODEL,
           max_tokens: 400,
           system: `Siz "${country.name}" vizasi bo'yicha ekspert hujjat tekshiruvchisiz. Foydalanuvchi quyidagi hujjatlar ro'yxatidan birini yubordi:
 ${checklistText}
@@ -2007,7 +2010,7 @@ SIFAT: <1-2 gap — hujjat aniq/sifatlimi; "${country.name}" uchun to'g'rimi; ag
       // ---- UMUMIY TAHLIL (checklist tanlanmagan bo'lsa — orqaga moslik) ----
       stage = 'AI orqali tahlil qilish';
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
+        model: DOC_MODEL,
         max_tokens: 1000,
         system: `Siz VizaAI ning viza hujjatlari bo'yicha ekspert tekshiruvchisiz. ${lang === 'ru' ? 'Отвечайте на русском.' : "O'zbek tilida javob bering."}
 Rasmdagi hujjatni diqqat bilan ko'rib chiqing va ANIQ shu tuzilishda javob bering (sarlavhalarni saqlang):
