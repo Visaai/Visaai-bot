@@ -75,6 +75,16 @@ so'rasa — qisqa, foydali javob ber (sen bu sohani bilasan), keyin tabiiy ravis
 
 SOTILADIGAN MAHSULOT: FAQAT "kurs_barchasi" (barcha kurslar paketi). offer_course doim shu paketni sotadi — alohida davlat kursini taklif qilma.${promoBlock}
 
+E'TIROZLARGA TAYYOR JAVOB (qisqa javob ber, keyin yopishga o't):
+- "Qimmat" → bir marta to'lov, umrbod foydali; agentga 5-10 mln bergandan ancha arzon. Kerak bo'lsa give_discount.
+- "Ishonmayman / aldashmaysizmi" → botda bepul test va AI hujjat tekshiruvi bor, o'zingiz sinab ko'ring; to'lovdan keyin yopiq kanal darhol ochiladi.
+- "O'zim uddalay olmayman" → kurs bosqichma-bosqich, oddiy tilda; minglab odam qilgan, siz ham qilasiz.
+- "Vaqtim yo'q" → videolar umrbod qoladi, istagan paytingiz ko'rasiz.
+- "Keyinroq / o'ylab ko'raman" → nima to'xtatayotganini so'ra, muddat/aksiya cheklovini esla, bugun yopishga harakat qil.
+
+XARID SIGNALI (darhol yop): mijoz "qancha / qanday to'layman / karta / bo'ladi / olaman" desa — vaqt yo'qotma,
+DARHOL offer_course chaqir va to'lovga yo'naltir.
+
 QOIDALAR:
 - Vizani "100% olib beramiz" deb VA'DA BERMA. Yakuniy qaror konsullikda — halol ayt, lekin tayyorgarlik
   shansni oshirishini tushuntir. "Pul ishlash" ni ham imkoniyat sifatida ayt, kafolat sifatida emas.
@@ -105,8 +115,19 @@ QOIDALAR:
 
   const OUTREACH_UZ = "(Tizim: bu odam botdan ro'yxatdan o'tgan, lekin jim turibdi. Unga O'ZING birinchi bo'lib qisqa, iliq xabar yoz — tanish, qaysi davlatga borishni xohlashini so'ra, keyin mos kursni tabiiy taklif qila boshla.)";
   const OUTREACH_RU = "(Система: человек зарегистрирован, но молчит. Напиши первым — тепло познакомься, спроси в какую страну хочет, затем начни предлагать подходящий курс.)";
-  const FOLLOWUP_UZ = "(Tizim: bu mijoz avval siz bilan gaplashgan yoki kursni ko'rgan, lekin hali SOTIB OLMADI. Unga QAYTA iliq va qisqa yoz — bezovta qilmasdan turtki ber: savoli bormi, nima to'xtatyapti, yordam kerakmi. Agar o'rinli bo'lsa, bugungi cheklangan chegirmani eslat va yopishga harakat qil.)";
-  const FOLLOWUP_RU = "(Система: клиент уже общался или видел курс, но НЕ купил. Напиши ему ПОВТОРНО, тепло и коротко — без давления подтолкни: есть ли вопросы, что останавливает. Если уместно, напомни про сегодняшнюю скидку и попробуй закрыть.)";
+  const FOLLOWUP_UZ = "(Tizim: bu mijoz avval siz bilan gaplashgan yoki kursni ko'rgan, lekin hali SOTIB OLMADI. Unga QAYTA iliq va qisqa yoz — bezovta qilmasdan turtki ber: savoli bormi, nima to'xtatyapti, yordam kerakmi.)";
+  const FOLLOWUP_RU = "(Система: клиент уже общался или видел курс, но НЕ купил. Напиши ему ПОВТОРНО, тепло и коротко — без давления подтолкни: есть ли вопросы, что останавливает.)";
+  // Bosqichli follow-up: 1 = yumshoq turtki, 2 = chegirma, 3+ = oxirgi imkon
+  function followupHint(lang, touch) {
+    if (lang === 'ru') {
+      if (touch >= 3) return "(Система: последний контакт. Мягко создай срочность — цена/предложение ограничены, сегодня последний шанс. Предложи оформить сейчас.)";
+      if (touch === 2) return "(Система: клиент всё ещё не купил. Предложи небольшую скидку через give_discount и попробуй закрыть сегодня.)";
+      return FOLLOWUP_RU;
+    }
+    if (touch >= 3) return "(Tizim: oxirgi murojaat. Yumshoq shoshilinch — narx/taklif cheklangan, bugun oxirgi imkon. Hozir rasmiylashtirishni taklif qil.)";
+    if (touch === 2) return "(Tizim: mijoz hali olmadi. give_discount bilan kichik chegirma taklif qil va bugun yopishga harakat qil.)";
+    return FOLLOWUP_UZ;
+  }
 
   // ---------------- TOOLS ----------------
   const TOOLS = [
@@ -214,7 +235,7 @@ QOIDALAR:
     const history = loadHistory(chatId);
     let firstText = userText || '';
     if (opts.firstTouch) firstText = (lang === 'ru' ? OUTREACH_RU : OUTREACH_UZ);
-    else if (opts.followup) firstText = (lang === 'ru' ? FOLLOWUP_RU : FOLLOWUP_UZ);
+    else if (opts.followup) firstText = followupHint(lang, opts.touch || 1);
     const messages = history.concat([{ role: 'user', content: firstText || '(salom)' }]);
 
     const ctx = { chatId, fromUser };
@@ -283,8 +304,8 @@ QOIDALAR:
   }
 
   // ---------------- FOLLOW-UP: sotib olmaganlarga qayta yozish ----------------
-  async function agentFollowup(chatId, fromUser) {
-    const r = await runAgent(chatId, '', { fromUser, followup: true });
+  async function agentFollowup(chatId, fromUser, touch) {
+    const r = await runAgent(chatId, '', { fromUser, followup: true, touch: touch || 1 });
     return r.text;
   }
 
@@ -306,7 +327,8 @@ QOIDALAR:
     let sent = 0;
     for (const [chatId, u] of targets) {
       try {
-        const text = await agentFollowup(chatId, { id: Number(chatId) });
+        u.followupCount = (u.followupCount || 0) + 1;   // bosqichni oshiramiz
+        const text = await agentFollowup(chatId, { id: Number(chatId) }, u.followupCount);
         if (bot) await bot.sendMessage(chatId, text);
         u.agentFollowupDate = today; saveDB();
         sent++;
