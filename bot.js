@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v28 (yopiq kanal havolasi ulandi; chek->AI->havola->admin tasdiqlaydi)';
+const BOT_VERSION = '2026-08-02-v29 (chek summa+sana tekshiruvi: mos kelmasa havola berilmaydi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -2002,13 +2002,19 @@ bot.on('message', async (msg) => {
   // bu holat yo'qolib, foydalanuvchiga noto'g'ri xabar ko'rsatilishi mumkin edi.)
   const isImageDocument = msg.document && msg.document.mime_type && msg.document.mime_type.startsWith('image/');
 
-  // ---- TO'LOV CHEKI — AI o'qiydi, mijozga havola DARHOL, adminga to'liq ma'lumot ----
+  // ---- TO'LOV CHEKI — AI summa va sanani TEKSHIRADI, keyin qaror qiladi ----
   if ((msg.photo || msg.document) && pendingPurchases.has(String(chatId))) {
     const purchase = pendingPurchases.get(String(chatId));
     const fileId = msg.photo ? msg.photo[msg.photo.length - 1].file_id : msg.document.file_id;
 
-    // AI chekni o'qiydi (summa/sana/karta)
-    let aiReading = "(o'qib bo'lmadi)";
+    const uu = usersDB[String(chatId)];
+    const lastPend = (uu.purchases || []).slice().reverse().find(p => p.status !== 'confirmed');
+    const expectedStr = lastPend ? lastPend.price : '';
+    const expectedNum = parseInt(String(expectedStr).replace(/[^\d]/g, ''), 10) || 0;
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    // AI chekni STRUKTURALI o'qiydi (kutilgan summa va bugungi sana bilan)
+    let vChek = '?', vSumma = 0, vBugun = '?', vKarta = '?', vShubha = '?', aiRaw = "(o'qib bo'lmadi)";
     try {
       const fileLink = await bot.getFileLink(fileId);
       const { buffer, contentType } = await downloadFileAsBuffer(fileLink);
@@ -2016,35 +2022,68 @@ bot.on('message', async (msg) => {
         const base64 = buffer.toString('base64');
         const mediaType = sanitizeImageMediaType((msg.document && msg.document.mime_type) || contentType);
         const resp = await anthropic.messages.create({
-          model: DOC_MODEL, max_tokens: 220,
-          system: `Siz to'lov cheki tekshiruvchisiz. Rasmni ko'rib, bu karta o'tkazmasi / to'lov cheki ekanini aniqlang va qisqa (3-4 qator) ayting: SUMMA, SANA, qaysi KARTAga (oxirgi raqamlar). Shubhali yoki tahrirlangan ko'rinsa — ayting. Ko'rinmasa "aniq emas" deb yozing. O'zingdan to'qima.`,
+          model: DOC_MODEL, max_tokens: 200,
+          system: `Siz to'lov cheki tekshiruvchisiz. Bugungi sana: ${todayStr}. Mijoz ${expectedNum} so'm to'lashi kerak edi.
+Rasmni ko'rib, AYNAN shu formatda javob bering (boshqa hech narsa yozmang):
+CHEK: <ha yoki yo'q — bu haqiqiy to'lov/o'tkazma cheki mi>
+SUMMA: <faqat raqam, chekdagi o'tkazilgan summa; ko'rinmasa 0>
+SANA_BUGUN: <ha yoki yo'q — chekdagi sana bugungi (${todayStr}) sanami>
+KARTA: <oxirgi 4 raqam yoki ?>
+SHUBHA: <ha yoki yo'q — tahrirlangan/soxta ko'rinsa "ha">`,
           messages: [{ role: 'user', content: [
             { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-            { type: 'text', text: "Chekni o'qing." },
+            { type: 'text', text: "Chekni tekshiring." },
           ] }],
         });
-        aiReading = resp.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() || aiReading;
+        aiRaw = resp.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() || aiRaw;
+        const g = (re) => { const m = aiRaw.match(re); return m ? m[1].trim() : '?'; };
+        vChek = g(/CHEK:\s*([^\n]+)/i).toLowerCase();
+        vSumma = parseInt((g(/SUMMA:\s*([\d\s.]+)/i).replace(/[^\d]/g, '')) || '0', 10) || 0;
+        vBugun = g(/SANA_BUGUN:\s*([^\n]+)/i).toLowerCase();
+        vKarta = g(/KARTA:\s*([^\n]+)/i);
+        vShubha = g(/SHUBHA:\s*([^\n]+)/i).toLowerCase();
       }
-    } catch (e) { /* o'qilmasa ham davom etamiz */ }
+    } catch (e) { /* o'qilmasa — quyida qo'lda tekshiruvga tushadi */ }
 
-    const uu = usersDB[String(chatId)];
-    const lastPend = (uu.purchases || []).slice().reverse().find(p => p.status !== 'confirmed');
-    const expectedPrice = lastPend ? lastPend.price : '?';
+    // QAROR: summa yetarli + sana bugungi + haqiqiy chek + shubha yo'q
+    const amountOk = expectedNum > 0 && vSumma >= expectedNum - 500;
+    const dateOk = vBugun.startsWith('ha');
+    const isReceipt = vChek.startsWith('ha');
+    const suspicious = vShubha.startsWith('ha');
+    const autoOk = isReceipt && amountOk && dateOk && !suspicious;
 
-    // 1) Adminga chek + to'liq ma'lumot (kanalda qo'shilish so'rovini tasdiqlash uchun)
-    const caption =
-      `💰 YANGI TO'LOV CHEKI\n` +
-      `👤 ${userLabel}\n🎬 ${purchase.name}\n💰 Kutilgan: ${expectedPrice}\n💳 Karta: ${purchase.card || '?'}\n\n` +
-      `🤖 AI o'qidi:\n${aiReading}\n\n` +
-      `➡️ Mijozga havola yuborildi. U kanalga QO'SHILISH SO'ROVI yuboradi — Telegramda tasdiqlang.\n` +
-      `Suhbat: /suhbat ${chatId}`;
-    for (const aid of ADMIN_CHAT_IDS) {
-      try { await bot.sendPhoto(aid, fileId, { caption: caption.slice(0, 1000) }); }
-      catch (e) { notifyAdmins(caption + `\n\n(rasm yuborilmadi) user_id: ${chatId}`); }
+    let problem = [];
+    if (!isReceipt) problem.push('chek aniqlanmadi');
+    if (!amountOk) problem.push(`summa mos emas (kutilgan ${expectedNum.toLocaleString('ru-RU')}, chekda ${vSumma.toLocaleString('ru-RU')})`);
+    if (!dateOk) problem.push('sana bugungi emas / eski chek');
+    if (suspicious) problem.push('shubhali/tahrirlangan');
+
+    const baseCap =
+      `👤 ${userLabel}\n🎬 ${purchase.name}\n💰 Kutilgan: ${expectedStr || expectedNum}\n💳 Karta: ${purchase.card || '?'}\n\n` +
+      `🤖 AI: summa ${vSumma.toLocaleString('ru-RU')} · sana bugun: ${vBugun} · shubha: ${vShubha}\n/suhbat ${chatId}`;
+
+    if (autoOk) {
+      for (const aid of ADMIN_CHAT_IDS) {
+        try { await bot.sendPhoto(aid, fileId, { caption: (`✅ TO'LOV MOS — havola yuborildi\n\n` + baseCap).slice(0, 1000) }); }
+        catch (e) { notifyAdmins(`✅ To'lov mos (${chatId}). ${baseCap}`); }
+      }
+      await sendCourseAccess(chatId); // havola beriladi
+    } else {
+      // MOS EMAS — havola BERILMAYDI. Adminga tugma bilan (kerak bo'lsa qo'lda tasdiqlaydi)
+      const kb = { inline_keyboard: [[
+        { text: '✅ Baribir tasdiqla', callback_data: `paycheck_ok_${chatId}` },
+        { text: '❌ Rad etish', callback_data: `paycheck_no_${chatId}` },
+      ]] };
+      const cap = `⚠️ CHEK MOS EMAS — TEKSHIRING\nMuammo: ${problem.join('; ')}\n\n` + baseCap;
+      for (const aid of ADMIN_CHAT_IDS) {
+        try { await bot.sendPhoto(aid, fileId, { caption: cap.slice(0, 1000), reply_markup: kb }); }
+        catch (e) { notifyAdmins(cap); }
+      }
+      await sendContent(chatId, lang === 'ru'
+        ? 'Мы получили чек, но данные не совпали (сумма или дата). Пожалуйста, оплатите точную сумму и пришлите новый чек, или напишите админу.'
+        : "Chekni oldik, lekin ma'lumot mos kelmadi (summa yoki sana). Iltimos, aniq summani to'lab, yangi chek yuboring yoki admin bilan bog'laning.",
+        { reply_markup: backButton(chatId) });
     }
-
-    // 2) Mijozga havolani DARHOL beramiz (u kutmasin)
-    await sendCourseAccess(chatId);
     return;
   }
 
