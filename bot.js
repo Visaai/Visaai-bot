@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v29 (chek summa+sana tekshiruvi: mos kelmasa havola berilmaydi)';
+const BOT_VERSION = '2026-08-02-v30 (faqat PRO paket sotiladi — agent va menyu; alohida davlat kurslari yo\'q)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -1383,13 +1383,13 @@ bot.on('callback_query', async (query) => {
 
   // ---- Video darsliklar ----
   if (data === 'courses') {
-    const rows = Object.entries(COURSE_CHANNELS).map(([key, c]) => {
-      const label = lang === 'ru' ? (c.shortNameRu || c.nameRu) : (c.shortName || c.name);
-      return [{ text: `${label} — ${c.price}`, callback_data: `buy_course_${key}` }];
-    });
-    rows.push([{ text: t.to_menu, callback_data: 'menu' }]);
-    const head = `${t.courses_head}\n\n${SINGLE_COURSE_DESC[lang]}\n\n🔥 ${lang === 'ru' ? 'Пакет всех курсов' : 'Barcha kurslar paketi'} (999 000):\n${lang === 'ru' ? COURSE_CHANNELS.kurs_barchasi.descRu : COURSE_CHANNELS.kurs_barchasi.desc}`;
-    return renderScreen(chatId, head, { inline_keyboard: rows });
+    const c = COURSE_CHANNELS.kurs_barchasi;
+    const buyLabel = lang === 'ru' ? `🎬 Купить пакет — ${c.price}` : `🎬 Paketni sotib olish — ${c.price}`;
+    const head = `🔥 ${lang === 'ru' ? 'ПАКЕТ ВСЕХ КУРСОВ' : 'BARCHA KURSLAR PAKETI'}\n\n${lang === 'ru' ? c.descRu : c.desc}`;
+    return renderScreen(chatId, head, { inline_keyboard: [
+      [{ text: buyLabel, callback_data: 'buy_course_kurs_barchasi' }],
+      [{ text: t.to_menu, callback_data: 'menu' }],
+    ] });
   }
   if (data.startsWith('buy_course_')) {
     const key = data.replace('buy_course_', '');
