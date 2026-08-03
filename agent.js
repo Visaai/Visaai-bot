@@ -5,7 +5,7 @@
 //   const vizaAgent = createAgent({ anthropic, usersDB, getUser, getLang, saveDB,
 //     notifyAdmins, triggerCoursePurchase, recommendCourse, COURSE_CHANNELS, bot });
 
-const DEFAULT_MODEL = process.env.AGENT_MODEL || 'claude-sonnet-4-6';
+const DEFAULT_MODEL = process.env.AGENT_MODEL || 'claude-haiku-4-5-20251001';
 const MAX_TOOL_LOOPS = 5;
 const MAX_TOKENS = 250;   // qisqa javoblar — arzon va odamdek
 const MAX_DISCOUNT = 20; // agent bera oladigan eng yuqori chegirma (%)
