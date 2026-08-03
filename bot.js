@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v34 (tezlik: bloklovchi saqlash olib tashlandi + outreach tezlashdi)';
+const BOT_VERSION = '2026-08-02-v35 (maks tejash: auto follow-up o\'chirilgan, bir marta yozadi, kam so\'rov, kalta)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -2346,17 +2346,7 @@ process.on('uncaughtException', (err) => {
   notifyAdmins(`🔴 Kutilmagan bot xatosi (uncaughtException): ${err && err.message ? err.message : err}`);
 });
 
-// ---------------------------------------------------------------
-// AVTOMATIK KUNLIK FOLLOW-UP — bot o'zi kunduzi sotib olmaganlarga turtki beradi
-// (har 3 soatda tekshiradi; faqat 09:00–21:00 Toshkent vaqtida; har mijozga kuniga 1 marta)
-// ---------------------------------------------------------------
-setInterval(async () => {
-  const hourTashkent = (new Date().getUTCHours() + 5) % 24; // Toshkent = UTC+5
-  if (hourTashkent < 9 || hourTashkent >= 21) return;       // tunda yozmaymiz
-  try {
-    const n = await vizaAgent.followupBatch(40);
-    if (n) notifyAdmins(`🔁 Avtomatik follow-up: agent ${n} ta mijozga qayta yozdi.`);
-  } catch (e) { console.error('avtomatik follow-up xatosi:', e.message); }
-}, 3 * 60 * 60 * 1000);
+// AVTOMATIK FOLLOW-UP O'CHIRILGAN (token tejash) — har mijozga faqat BIR MARTA yoziladi.
+// Kerak bo'lsa admin qo'lda /agent_followup bilan ishga tushiradi.
 
 console.log(`VizaAI bot ishga tushdi ✅ | Versiya: ${BOT_VERSION}`);
