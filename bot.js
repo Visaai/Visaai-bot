@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v24 (hujjat tekshiruvi ham Haiku-da — maksimal tejash; Sonnet ishlatilmaydi)';
+const BOT_VERSION = '2026-08-02-v28 (yopiq kanal havolasi ulandi; chek->AI->havola->admin tasdiqlaydi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -58,8 +58,52 @@ const DOC_MODEL = process.env.DOC_MODEL || 'claude-haiku-4-5-20251001';
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
 const SITE_URL = 'https://vizaai.uz';
-const PAYMENT_CARD_NUMBER = '9860 1766 1886 7038'; // A.Sobirov
-const PAYMENT_CARD_HOLDER = 'A.Sobirov';
+const PAYMENT_CARD_NUMBER = '9860 1766 1886 7038'; // eski (zaxira sifatida qoladi)
+const PAYMENT_CARD_HOLDER = 'A. Sobirov';
+
+// To'lov kartalari — har xaridга navbatma-navbat beriladi (bitta kartaga hamma pul tushmasin -> blok xavfi kam)
+const CARDS = [
+  { number: '9860 1766 1886 7038', holder: 'A. Sobirov', bank: "Ipak Yo'li" },
+  { number: '5614 6821 0208 7428', holder: 'A. Sobirov', bank: "Ipak Yo'li" },
+  { number: '9860 6067 4685 8079', holder: 'A. Sobirov', bank: 'Anor bank' },
+];
+let cardIndex = 0;
+function nextCard() {
+  const c = CARDS[cardIndex % CARDS.length];
+  cardIndex++;
+  return c;
+}
+
+// Yopiq kurs kanali havolasi — to'lov tasdiqlangach mijozga shu yuboriladi.
+// SHU YERGA o'z yopiq kanalingiz havolasini qo'ying (masalan: 'https://t.me/+AbCdEf123')
+const PRIVATE_CHANNEL_LINK = process.env.PRIVATE_CHANNEL_LINK || 'https://t.me/+q2y1INy3ZbNmZWMy';
+
+// To'lov chekidan keyin — mijozga havolani DARHOL beramiz (kanalda so'rovni admin tasdiqlaydi)
+async function sendCourseAccess(targetId) {
+  const purchase = pendingPurchases.get(String(targetId));
+  const targetLang = getLang(targetId);
+  const u = usersDB[String(targetId)];
+  if (u) {
+    const rec = [...(u.purchases || [])].reverse().find(p => p.status === 'pending' && (!purchase || p.key === purchase.key));
+    if (rec) { rec.status = 'confirmed'; rec.confirmedAt = new Date().toISOString(); }
+    saveDB();
+  }
+  const key = purchase ? purchase.key : null;
+  const courseObj = key ? COURSE_CHANNELS[key] : null;
+  const link = (courseObj && courseObj.link && !String(courseObj.link).startsWith('HAVOLA')) ? courseObj.link : PRIVATE_CHANNEL_LINK;
+  if (link && !String(link).startsWith('HAVOLA')) {
+    await bot.sendMessage(targetId, targetLang === 'ru'
+      ? `🎉 Оплата принята! Вот ссылка на закрытый канал курса:\n${link}\n\nНажмите и отправьте запрос на вступление — админ подтвердит вас в ближайшее время. 🙌`
+      : `🎉 To'lov qabul qilindi! Mana yopiq kurs kanali havolasi:\n${link}\n\nHavolaga bosib, qo'shilish so'rovini yuboring — admin tez orada sizni tasdiqlaydi. 🙌`).catch(() => {});
+  } else {
+    await bot.sendMessage(targetId, targetLang === 'ru'
+      ? `🎉 Оплата принята! Админ добавит вас в закрытый канал курса в ближайшее время.`
+      : `🎉 To'lov qabul qilindi! Admin tez orada sizni yopiq kurs kanaliga qo'shadi.`).catch(() => {});
+    notifyAdmins(`⚠️ Kanal havolasi sozlanmagan (PRIVATE_CHANNEL_LINK). ${targetId} ni qo'lda qo'shing.`);
+  }
+  adminCounters.sales++;
+  pendingPurchases.delete(String(targetId));
+}
 const ADMIN_CONTACT_USERNAME = '@A_Sobirov39';
 // Telegram Markdown rejimida "_" belgisi qiya shrift (italic) belgisi hisoblanadi —
 // juft bo'lmasa butun xabarni buzadi. Shu sabab, Markdown ishlatiladigan joylarda
@@ -1059,12 +1103,15 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
     }
   }
 
+  const card = nextCard();
+  const pend = pendingPurchases.get(String(chatId));
+  if (pend) { pend.card = `${card.number} (${card.bank})`; }
   const cardBlock = lang === 'ru'
-    ? `💳 Карта (нажмите, чтобы скопировать):\n\`${PAYMENT_CARD_NUMBER}\`\n👤 ${PAYMENT_CARD_HOLDER}`
-    : `💳 Karta (bosib nusxalang):\n\`${PAYMENT_CARD_NUMBER}\`\n👤 ${PAYMENT_CARD_HOLDER}`;
+    ? `💳 Карта (нажмите, чтобы скопировать):\n\`${card.number}\`\n👤 ${card.holder} · ${card.bank}`
+    : `💳 Karta (bosib nusxalang):\n\`${card.number}\`\n👤 ${card.holder} · ${card.bank}`;
   const afterPayLine = lang === 'ru'
-    ? `\n\n✅ После оплаты отправьте скриншот чека напрямую администратору, чтобы получить доступ к каналу курса: ${ADMIN_CONTACT_USERNAME_MD}`
-    : `\n\n✅ To'lovdan so'ng chek skrinshotini to'g'ridan-to'g'ri adminga yuboring — shunda video darslik kanaliga ruxsat olasiz: ${ADMIN_CONTACT_USERNAME_MD}`;
+    ? `\n\n✅ После оплаты отправьте скриншот чека СЮДА (в этот чат) — мы проверим и пришлём ссылку на закрытый канал курса.`
+    : `\n\n✅ To'lovdan so'ng chek skrinshotini SHU YERGA (shu chatga) yuboring — tekshirib, yopiq kurs kanali havolasini yuboramiz.`;
 
   await renderScreen(chatId,
     `${t.purchase_thanks}: "${name}" — ${displayPrice} 🎬${discountLine}\n\n${desc}\n\n${t.purchase_pay}\n\n${cardBlock}${afterPayLine}`,
@@ -1177,6 +1224,26 @@ bot.on('callback_query', async (query) => {
   const savedPendingPayload = stateBefore.pendingPayload;
 
   if (!data.startsWith('chance_ans_') && !data.startsWith('chance_back_') && data !== 'doccheck_finish') clearPendingState(chatId);
+
+  // ---- To'lov chekini tasdiqlash/rad etish (admin bir tugma bilan) ----
+  if (data.startsWith('paycheck_ok_')) {
+    if (!isAdmin(chatId)) return;
+    const uid = data.replace('paycheck_ok_', '');
+    if (!pendingPurchases.has(String(uid))) {
+      return bot.sendMessage(chatId, `Bu mijoz (${uid}) allaqachon tasdiqlangan yoki bekor qilingan.`);
+    }
+    await sendCourseAccess(uid);
+    return bot.sendMessage(chatId, `✅ Tasdiqlandi — havola mijozga yuborildi (${uid}).`);
+  }
+  if (data.startsWith('paycheck_no_')) {
+    if (!isAdmin(chatId)) return;
+    const uid = data.replace('paycheck_no_', '');
+    const l = getLang(uid);
+    await bot.sendMessage(uid, l === 'ru'
+      ? 'К сожалению, оплата пока не подтверждена. Проверьте и отправьте чек ещё раз, или напишите админу.'
+      : "Kechirasiz, to'lov hali tasdiqlanmadi. Tekshirib, chekni qayta yuboring yoki admin bilan bog'laning.").catch(() => {});
+    return bot.sendMessage(chatId, `❌ Rad etildi (${uid}) — mijozga xabar berildi.`);
+  }
 
   if (data === 'menu') return sendMainMenu(chatId);
 
@@ -1677,23 +1744,45 @@ setInterval(async () => {
   } catch (e) { /* bloklagan bo'lishi mumkin */ }
 }, 2500);
 
-// Admin xulosasi — har 2 soatda bir marta (kunduzi), har bir odam bilan bezovta qilmaydi
+// Admin hisoboti — HAR SOATDA (kunduzi): umumiy son + har bir faol mijoz haqida qisqacha
 setInterval(() => {
   const hourTashkent = (new Date().getUTCHours() + 5) % 24;
-  if (hourTashkent < 9 || hourTashkent >= 22) return;
+  if (hourTashkent < 9 || hourTashkent >= 23) return;
   const c = adminCounters;
-  if (c.reg || c.chats || c.offers || c.sales) {
-    notifyAdmins(
-      `📊 Oxirgi 2 soat xulosasi:\n` +
-      `🆕 Yangi ro'yxatdan: ${c.reg}\n` +
-      `💬 Agent bilan gaplashdi: ${c.chats}\n` +
-      `🎬 Kurs ko'rdi (pending): ${c.offers}\n` +
-      `✅ Sotildi: ${c.sales}\n\n` +
-      `Batafsil: /stats · /agent_stats · /qongiroq`
-    );
-    c.reg = 0; c.chats = 0; c.offers = 0; c.sales = 0;
+
+  // Oxirgi 1 soatda agent bilan gaplashgan mijozlar
+  const since = Date.now() - 60 * 60 * 1000;
+  const active = Object.entries(usersDB)
+    .filter(([, u]) => u.lastAgentAt && u.lastAgentAt >= since)
+    .sort((a, b) => (b[1].lastAgentAt || 0) - (a[1].lastAgentAt || 0));
+
+  if (!c.reg && !c.chats && !c.offers && !c.sales && !active.length) return;
+
+  let text =
+    `📊 SOATLIK HISOBOT (${String(hourTashkent).padStart(2, '0')}:00)\n\n` +
+    `🆕 Yangi ro'yxatdan: ${c.reg}\n` +
+    `💬 Gaplashdi: ${c.chats}\n` +
+    `🎬 Kurs ko'rdi: ${c.offers}\n` +
+    `✅ Sotildi: ${c.sales}\n`;
+
+  if (active.length) {
+    text += `\n— Faol mijozlar (${active.length}) —\n`;
+    active.slice(0, 25).forEach(([id, u]) => {
+      const bought = (u.purchases || []).some(p => p.status === 'confirmed');
+      const pend = (u.purchases || []).some(p => p.status !== 'confirmed');
+      const status = bought ? '✅ sotib oldi' : pend ? '🎬 kurs ko\'rdi' : '💬 gaplashyapti';
+      const who = u.name || 'Mijoz';
+      const interest = u.interestedIn ? ` — ${u.interestedIn}` : '';
+      text += `• ${who} (${id})${interest} — ${status}\n`;
+    });
+    if (active.length > 25) text += `...va yana ${active.length - 25} ta\n`;
+    text += `\nBiror suhbatni ko'rish: /suhbat <id>\nJavob berish: /javob <id> <matn>`;
   }
-}, 2 * 60 * 60 * 1000);
+
+  // Telegram cheklovi uchun bo'lib yuboramiz
+  (text.match(/[\s\S]{1,3800}/g) || [text]).forEach(chunk => notifyAdmins(chunk));
+  c.reg = 0; c.chats = 0; c.offers = 0; c.sales = 0;
+}, 60 * 60 * 1000);
 
 // ADMIN: agentni ishga tushirish — ro'yxatdan o'tgan, jim turganlarga o'zi yozadi
 // Foydalanish: /agent_sell  yoki  /agent_sell 50  (nechta odamga)
@@ -1728,6 +1817,24 @@ bot.onText(/^\/suhbat[ _](\d+)$/, (msg, match) => {
   }
   const last = u.agentHistory.slice(-12).map(m => (m.role === 'user' ? '🧑 ' : '🤖 ') + m.content).join('\n\n');
   bot.sendMessage(msg.chat.id, `📜 ${u.name || 'Mijoz'} (${uid}) bilan suhbat:\n\n${last}`.slice(0, 4000));
+});
+
+// ADMIN: mijozga to'g'ridan-to'g'ri javob yozish — /javob <user_id> <matn>
+bot.onText(/^\/javob[ _](\d+)\s+([\s\S]+)$/, (msg, match) => {
+  if (!isAdmin(msg.chat.id)) return;
+  const uid = match[1], text = match[2];
+  bot.sendMessage(uid, text)
+    .then(() => bot.sendMessage(msg.chat.id, `✅ Yuborildi (${uid}).`))
+    .catch(e => bot.sendMessage(msg.chat.id, `❌ Yuborilmadi: ${e.message}`));
+});
+
+// ADMIN: mijozni yana agentga qaytarish (operator rejimidan chiqarish) — /agent_qayta <user_id>
+bot.onText(/^\/agent_qayta[ _](\d+)$/, (msg, match) => {
+  if (!isAdmin(msg.chat.id)) return;
+  const uid = match[1];
+  const u = usersDB[uid];
+  if (u) { u.state = 'active'; saveDB(); }
+  bot.sendMessage(msg.chat.id, `✅ ${uid} yana AI agentga topshirildi.`);
 });
 
 // Foydalanish: /agent_followup  yoki  /agent_followup 50
@@ -1895,13 +2002,49 @@ bot.on('message', async (msg) => {
   // bu holat yo'qolib, foydalanuvchiga noto'g'ri xabar ko'rsatilishi mumkin edi.)
   const isImageDocument = msg.document && msg.document.mime_type && msg.document.mime_type.startsWith('image/');
 
-  // ---- TO'LOV CHEKI — bot hech narsani tahlil qilmaydi/tekshirmaydi,
-  // shunchaki foydalanuvchini to'g'ridan-to'g'ri adminga yuborishga yo'naltiradi ----
+  // ---- TO'LOV CHEKI — AI o'qiydi, mijozga havola DARHOL, adminga to'liq ma'lumot ----
   if ((msg.photo || msg.document) && pendingPurchases.has(String(chatId))) {
-    const confirmMsg = lang === 'ru'
-      ? `Чтобы получить доступ к каналу курса, отправьте скриншот чека напрямую администратору: ${ADMIN_CONTACT_USERNAME}`
-      : `Video darslik kanaliga ruxsat olish uchun, chek skrinshotini to'g'ridan-to'g'ri adminga yuboring: ${ADMIN_CONTACT_USERNAME}`;
-    await sendContent(chatId, confirmMsg, { reply_markup: backButton(chatId) });
+    const purchase = pendingPurchases.get(String(chatId));
+    const fileId = msg.photo ? msg.photo[msg.photo.length - 1].file_id : msg.document.file_id;
+
+    // AI chekni o'qiydi (summa/sana/karta)
+    let aiReading = "(o'qib bo'lmadi)";
+    try {
+      const fileLink = await bot.getFileLink(fileId);
+      const { buffer, contentType } = await downloadFileAsBuffer(fileLink);
+      if (buffer.length / (1024 * 1024) < 4.5) {
+        const base64 = buffer.toString('base64');
+        const mediaType = sanitizeImageMediaType((msg.document && msg.document.mime_type) || contentType);
+        const resp = await anthropic.messages.create({
+          model: DOC_MODEL, max_tokens: 220,
+          system: `Siz to'lov cheki tekshiruvchisiz. Rasmni ko'rib, bu karta o'tkazmasi / to'lov cheki ekanini aniqlang va qisqa (3-4 qator) ayting: SUMMA, SANA, qaysi KARTAga (oxirgi raqamlar). Shubhali yoki tahrirlangan ko'rinsa — ayting. Ko'rinmasa "aniq emas" deb yozing. O'zingdan to'qima.`,
+          messages: [{ role: 'user', content: [
+            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+            { type: 'text', text: "Chekni o'qing." },
+          ] }],
+        });
+        aiReading = resp.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() || aiReading;
+      }
+    } catch (e) { /* o'qilmasa ham davom etamiz */ }
+
+    const uu = usersDB[String(chatId)];
+    const lastPend = (uu.purchases || []).slice().reverse().find(p => p.status !== 'confirmed');
+    const expectedPrice = lastPend ? lastPend.price : '?';
+
+    // 1) Adminga chek + to'liq ma'lumot (kanalda qo'shilish so'rovini tasdiqlash uchun)
+    const caption =
+      `💰 YANGI TO'LOV CHEKI\n` +
+      `👤 ${userLabel}\n🎬 ${purchase.name}\n💰 Kutilgan: ${expectedPrice}\n💳 Karta: ${purchase.card || '?'}\n\n` +
+      `🤖 AI o'qidi:\n${aiReading}\n\n` +
+      `➡️ Mijozga havola yuborildi. U kanalga QO'SHILISH SO'ROVI yuboradi — Telegramda tasdiqlang.\n` +
+      `Suhbat: /suhbat ${chatId}`;
+    for (const aid of ADMIN_CHAT_IDS) {
+      try { await bot.sendPhoto(aid, fileId, { caption: caption.slice(0, 1000) }); }
+      catch (e) { notifyAdmins(caption + `\n\n(rasm yuborilmadi) user_id: ${chatId}`); }
+    }
+
+    // 2) Mijozga havolani DARHOL beramiz (u kutmasin)
+    await sendCourseAccess(chatId);
     return;
   }
 
@@ -2079,6 +2222,11 @@ QOIDALAR:
   // ---- AI yordamchi / erkin savol ----
   if (text) {
     const u = getUser(chatId);
+    // Operator rejimida bo'lsa — agent aralashmaydi, mijoz xabari adminga boradi
+    if (u.state === 'human') {
+      notifyAdmins(`✉️ MIJOZ (${chatId}${u.name ? ', ' + u.name : ''}): ${text}\n\nJavob berish: /javob ${chatId} <matningiz>\nAgentga qaytarish: /agent_qayta ${chatId}`);
+      return;
+    }
     const today = new Date().toISOString().slice(0, 10);
     if (u.aiQuestionDate !== today) { u.aiQuestionDate = today; u.aiQuestionCount = 0; }
     const isPaying = (u.purchases || []).some(p => p.status === 'confirmed');
@@ -2106,7 +2254,8 @@ QOIDALAR:
       // AI sotuv agenti javob beradi — suhbatlashadi va kurs sotadi
       const reply = await vizaAgent.runAgent(chatId, text, { fromUser: msg.from });
       await sendContent(chatId, reply.text, { reply_markup: backButton(chatId) });
-      adminCounters.chats++; // har bir suhbatni alohida emas — 2 soatlik xulosada ko'rsatamiz
+      adminCounters.chats++; // har bir suhbatni alohida emas — soatlik xulosada ko'rsatamiz
+      u.lastAgentAt = Date.now(); // soatlik hisobot uchun
       // Jonli kuzatuv yoqilgan bo'lsa — suhbatni adminga nusxalaymiz
       if (liveMode) {
         notifyAdmins(`💬 ${userLabel}\n🧑 ${text}\n🤖 ${reply.text}`);
