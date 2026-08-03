@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v35 (maks tejash: auto follow-up o\'chirilgan, bir marta yozadi, kam so\'rov, kalta)';
+const BOT_VERSION = '2026-08-02-v36 (tugmali ADMIN PANEL: /admin — stats, faol mijozlar, javob, jonli kuzatuv)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -1263,6 +1263,62 @@ bot.on('callback_query', async (query) => {
     return bot.sendMessage(chatId, `❌ Rad etildi (${uid}) — mijozga xabar berildi.`);
   }
 
+  // ---- ADMIN PANEL tugmalari ----
+  if (data.startsWith('adm_')) {
+    if (!isAdmin(chatId)) return;
+    if (data === 'adm_panel') return showAdminPanel(chatId);
+    if (data === 'adm_stats') return bot.sendMessage(chatId, statsText());
+    if (data === 'adm_agentstats') return bot.sendMessage(chatId, agentStatsText());
+    if (data === 'adm_pending') {
+      const t = pendingListText();
+      (t.match(/[\s\S]{1,3800}/g) || [t]).forEach(c => bot.sendMessage(chatId, c));
+      return;
+    }
+    if (data === 'adm_live') {
+      liveMode = !liveMode;
+      await bot.sendMessage(chatId, liveMode ? "🟢 Jonli kuzatuv YOQILDI — har suhbat sizga keladi." : "⚪️ Jonli kuzatuv o'chirildi.");
+      return showAdminPanel(chatId);
+    }
+    if (data === 'adm_sell') {
+      await bot.sendMessage(chatId, "⏳ Agent 30 kishiga yozmoqda...");
+      const n = await vizaAgent.outreachBatch(30);
+      return bot.sendMessage(chatId, `✅ Agent ${n} ta mijozga yozdi.`);
+    }
+    if (data === 'adm_active') {
+      const since = Date.now() - 6 * 60 * 60 * 1000;
+      const active = Object.entries(usersDB)
+        .filter(([, u]) => u.lastAgentAt && u.lastAgentAt >= since)
+        .sort((a, b) => (b[1].lastAgentAt || 0) - (a[1].lastAgentAt || 0)).slice(0, 8);
+      if (!active.length) return bot.sendMessage(chatId, "So'nggi 6 soatda faol mijoz yo'q.");
+      const rows = active.map(([id, u]) => {
+        const bought = (u.purchases || []).some(p => p.status === 'confirmed');
+        const pend = (u.purchases || []).some(p => p.status !== 'confirmed');
+        const st = bought ? '✅' : pend ? '🎬' : '💬';
+        return [{ text: `${st} ${u.name || 'Mijoz'} (${id})`, callback_data: `adm_view_${id}` }];
+      });
+      rows.push([{ text: '🔙 Panel', callback_data: 'adm_panel' }]);
+      return bot.sendMessage(chatId, "👤 Faol mijozlar — birini tanlang (suhbatini ko'rasiz):", { reply_markup: { inline_keyboard: rows } });
+    }
+    if (data.startsWith('adm_view_')) {
+      const id = data.replace('adm_view_', '');
+      const u = usersDB[id];
+      if (!u || !(u.agentHistory || []).length) return bot.sendMessage(chatId, "Bu mijoz bilan hali suhbat yo'q.");
+      const conv = u.agentHistory.slice(-12).map(m => (m.role === 'user' ? '🧑 ' : '🤖 ') + m.content).join('\n\n');
+      return bot.sendMessage(chatId, `📜 ${u.name || 'Mijoz'} (${id}):\n\n${conv}`.slice(0, 3500), {
+        reply_markup: { inline_keyboard: [
+          [{ text: '✍️ Shu mijozga javob berish', callback_data: `adm_reply_${id}` }],
+          [{ text: '🔙 Panel', callback_data: 'adm_panel' }],
+        ] },
+      });
+    }
+    if (data.startsWith('adm_reply_')) {
+      const id = data.replace('adm_reply_', '');
+      adminReplyTo[chatId] = id;
+      return bot.sendMessage(chatId, `✍️ ${id} ga javob yozing — keyingi xabaringiz TO'G'RIDAN mijozga ketadi.\nBekor qilish: /bekor`);
+    }
+    return;
+  }
+
   if (data === 'menu') return sendMainMenu(chatId);
 
   if (data === 'lang') {
@@ -1599,6 +1655,48 @@ bot.onText(/\/tasdiqla (.+)/, async (msg, match) => {
 
   pendingPurchases.delete(targetId);
 });
+
+// ================= ADMIN PANEL (tugmalar bilan — buyruq yozish shart emas) =================
+const adminReplyTo = {}; // { [adminChatId]: targetUserId } — javob rejimi
+
+function statsText() {
+  const users = Object.entries(usersDB);
+  const total = users.length;
+  const withConfirmed = users.filter(([, u]) => (u.purchases || []).some(p => p.status === 'confirmed')).length;
+  const withPendingOnly = users.filter(([, u]) => (u.purchases || []).length > 0 && !(u.purchases || []).some(p => p.status === 'confirmed')).length;
+  const priceToNumber = (s) => parseInt((s || '0').replace(/[^\d]/g, ''), 10) || 0;
+  let revenue = 0;
+  users.forEach(([, u]) => (u.purchases || []).forEach(p => { if (p.status === 'confirmed') revenue += priceToNumber(p.price); }));
+  return `📊 STATISTIKA\n\n👥 Ro'yxatdan o'tgan: ${total}\n✅ Sotib olgan: ${withConfirmed}\n⏳ So'ragan, to'lamagan: ${withPendingOnly}\n💰 Daromad: ${revenue.toLocaleString('ru-RU')} so'm`;
+}
+function agentStatsText() {
+  const users = Object.values(usersDB);
+  const messaged = users.filter(u => u.agentOutreached).length;
+  const replied = users.filter(u => (u.agentHistory || []).some(m => m.role === 'user' && m.content)).length;
+  const bought = users.filter(u => (u.purchases || []).some(p => p.status === 'confirmed')).length;
+  const conv = messaged ? Math.round((bought / messaged) * 100) : 0;
+  return `🤖 AGENT STATISTIKASI\n\n📤 Yozgan: ${messaged}\n💬 Javob bergan: ${replied}\n✅ Sotib olgan: ${bought}\n📈 Konversiya: ${conv}%`;
+}
+function pendingListText() {
+  const notBuyers = Object.entries(usersDB).filter(([, u]) => (u.purchases || []).length > 0 && !(u.purchases || []).some(p => p.status === 'confirmed'));
+  if (!notBuyers.length) return "⏳ So'ragan, to'lamagan mijoz yo'q.";
+  const lines = notBuyers.slice(0, 40).map(([id, u]) => `• ${u.name || 'Mijoz'} (${id}) — ${u.phone || '—'}`);
+  return `⏳ SO'RAGAN, TO'LAMAGAN (${notBuyers.length}):\n\n` + lines.join('\n') + `\n\nSuhbatni ko'rish: "Faol mijozlar" tugmasi`;
+}
+function adminPanelKeyboard() {
+  return { inline_keyboard: [
+    [{ text: '📊 Statistika', callback_data: 'adm_stats' }, { text: '🤖 Agent stats', callback_data: 'adm_agentstats' }],
+    [{ text: '👤 Faol mijozlar (ko\'rish/javob)', callback_data: 'adm_active' }],
+    [{ text: "⏳ To'lamaganlar ro'yxati", callback_data: 'adm_pending' }],
+    [{ text: (liveMode ? '👀 Jonli kuzatuv: YONIQ ✅ (o\'chirish)' : "👀 Jonli kuzatuv: o'chiq (yoqish)"), callback_data: 'adm_live' }],
+    [{ text: '📣 Agentni ishga tushirish (30 kishi)', callback_data: 'adm_sell' }],
+  ] };
+}
+function showAdminPanel(chatId) {
+  return bot.sendMessage(chatId, '🛠 ADMIN PANEL — kerakli tugmani tanlang:', { reply_markup: adminPanelKeyboard() });
+}
+bot.onText(/^\/admin$/, (msg) => { if (isAdmin(msg.chat.id)) showAdminPanel(msg.chat.id); });
+bot.onText(/^\/bekor$/, (msg) => { if (isAdmin(msg.chat.id) && adminReplyTo[msg.chat.id]) { delete adminReplyTo[msg.chat.id]; bot.sendMessage(msg.chat.id, '❌ Javob rejimi bekor qilindi.'); } });
 
 // ---------------------------------------------------------------
 // ADMIN: statistika — /stats
@@ -2279,6 +2377,15 @@ QOIDALAR:
 
   // ---- AI yordamchi / erkin savol ----
   if (text) {
+    // Admin javob rejimida bo'lsa — yozgani to'g'ridan mijozga ketadi
+    if (isAdmin(chatId) && adminReplyTo[chatId] && !text.startsWith('/')) {
+      const target = adminReplyTo[chatId];
+      delete adminReplyTo[chatId];
+      bot.sendMessage(target, text)
+        .then(() => bot.sendMessage(chatId, `✅ Yuborildi (${target}).`))
+        .catch(e => bot.sendMessage(chatId, `❌ Yuborilmadi: ${e.message}`));
+      return;
+    }
     const u = getUser(chatId);
     // Operator rejimida bo'lsa — agent aralashmaydi, mijoz xabari adminga boradi
     if (u.state === 'human') {
