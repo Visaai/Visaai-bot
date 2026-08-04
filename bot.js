@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v37 (agent qat\'iy: yo\'q davlatni bor demaydi, ishchi/student vizaga xizmat yo\'q deydi)';
+const BOT_VERSION = '2026-08-02-v38 (rus tili bazaga saqlanadi + til tugmasi; narx 990k; aksiya o\'chiq)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -113,10 +113,10 @@ const ADMIN_CONTACT_USERNAME_MD = ADMIN_CONTACT_USERNAME.replace(/_/g, '\\_');
 
 // ---------------------------------------------------------------
 // PRO PAKET REKLAMA AKSIYASI
-// Aksiya AVTOMATIK: 'from' sanadan 'until' sanagacha 999 000 o'rniga 600 000 so'm.
+// Aksiya AVTOMATIK: 'from' sanadan 'until' sanagacha 990 000 o'rniga 600 000 so'm.
 // Chorshanba (5-avgust) o'zi yonadi, bir haftadan keyin o'zi o'chadi — qo'lda tegish shart emas.
 // ---------------------------------------------------------------
-const PRO_PROMO = { active: true, price: 600000, from: '2026-08-05', until: '2026-08-12' };
+const PRO_PROMO = { active: false, price: 600000, from: '2026-08-05', until: '2026-08-12' };
 function proPromoActive() {
   const today = new Date().toISOString().slice(0, 10);
   return PRO_PROMO.active && today >= PRO_PROMO.from && today <= PRO_PROMO.until;
@@ -298,11 +298,25 @@ async function sendAdminProfileCard(chatId, event) {
 // TIL (uz / ru)
 // ---------------------------------------------------------------
 const userLang = new Map();
-function getLang(chatId) { return userLang.get(chatId) || 'uz'; }
+function getLang(chatId) {
+  const id = String(chatId);
+  if (userLang.has(id)) return userLang.get(id);
+  const u = usersDB[id];
+  const lang = (u && u.lang) ? u.lang : 'uz';
+  userLang.set(id, lang);
+  return lang;
+}
+function setUserLang(chatId, lang) {
+  const id = String(chatId);
+  userLang.set(id, lang);
+  const u = getUser(chatId);
+  u.lang = lang;                 // bazaga saqlaymiz — deploy'da yo'qolmaydi
+  saveDB(chatId);
+}
 
 const T = {
   uz: {
-    welcome: "Assalomu alaykum! VizaAI botiga xush kelibsiz 👋\n\nBu AI botda siz nimalar qila olasiz:\n\n✅ Viza olish imkoniyatingizni AI orqali aniqlash\n✅ Hujjatlaringizni AI yordamida tekshirish\n✅ Har bir davlat uchun kerakli hujjatlar ro'yxatini topish\n✅ Sayohatda foydali bo'ladigan barcha lifehacklarni olish\n\n🔥 SUPER TAKLIF: 999 000 so'mga — barcha viza kurslari + sayohatda arzon qiladigan lifehacklar to'plami!\n\nBoshlash uchun kerakli tugmani bosing:",
+    welcome: "Assalomu alaykum! VizaAI botiga xush kelibsiz 👋\n\nBu AI botda siz nimalar qila olasiz:\n\n✅ Viza olish imkoniyatingizni AI orqali aniqlash\n✅ Hujjatlaringizni AI yordamida tekshirish\n✅ Har bir davlat uchun kerakli hujjatlar ro'yxatini topish\n✅ Sayohatda foydali bo'ladigan barcha lifehacklarni olish\n\n🔥 SUPER TAKLIF: 990 000 so'mga — barcha viza kurslari + sayohatda arzon qiladigan lifehacklar to'plami!\n\nBoshlash uchun kerakli tugmani bosing:",
     menu_chance: "🧠 Viza imkoniyati testi",
     menu_services: "🗂️ Viza xizmatlari",
     menu_docs: "📸 Hujjatni AI tekshirish",
@@ -346,7 +360,7 @@ const T = {
     chance_cta: "\n\n💡 Profilingizni kuchaytirish uchun mos video kursimiz bor — \"Video darsliklar\" bo'limini ko'ring!",
   },
   ru: {
-    welcome: "Здравствуйте! Добро пожаловать в бот VizaAI 👋\n\nЧто вы можете делать в этом AI-боте:\n\n✅ Узнать свои шансы на визу через AI\n✅ Проверить документы с помощью AI\n✅ Найти список нужных документов по каждой стране\n✅ Получить все полезные лайфхаки для путешествий\n\n🔥 СУПЕР-ПРЕДЛОЖЕНИЕ: за 999 000 сум — все визовые курсы + сборник лайфхаков для экономии в путешествиях!\n\nНажмите нужную кнопку, чтобы начать:",
+    welcome: "Здравствуйте! Добро пожаловать в бот VizaAI 👋\n\nЧто вы можете делать в этом AI-боте:\n\n✅ Узнать свои шансы на визу через AI\n✅ Проверить документы с помощью AI\n✅ Найти список нужных документов по каждой стране\n✅ Получить все полезные лайфхаки для путешествий\n\n🔥 СУПЕР-ПРЕДЛОЖЕНИЕ: за 990 000 сум — все визовые курсы + сборник лайфхаков для экономии в путешествиях!\n\nНажмите нужную кнопку, чтобы начать:",
     menu_chance: "🧠 Тест визовых шансов",
     menu_services: "🗂️ Визовые услуги",
     menu_docs: "📸 Проверка документа AI",
@@ -537,7 +551,7 @@ const COURSE_CHANNELS = {
   kurs_kanada:     { name: 'Kanada visitor vizasi',             nameRu: 'Виза посетителя Канады',          price: '349 000 so‘m', link: 'HAVOLA_BU_YERGA_KANADA' },
   kurs_barchasi:   {
     name: 'Barcha video darsliklar paketi', nameRu: 'Пакет всех видеокурсов',
-    price: '999 000 so‘m', link: 'HAVOLA_BU_YERGA_BARCHASI',
+    price: '990 000 so‘m', link: 'HAVOLA_BU_YERGA_BARCHASI',
     desc: `Paketga kiradi:
 🎓 12-15 davlat bo'yicha to'liq viza darsliklari
 ✈️ Eng arzon aviabilet olish sirlari
@@ -611,14 +625,14 @@ VIZAAI HAQIDA:
   Ispaniya (199 000), Fransiya (199 000), Germaniya (199 000), Kombo: Litva/Belgiya/Avstriya/Bolgariya/Lyuksemburg/Niderlandiya (199 000),
   Yaponiya (149 000), AQSH B1/B2 (299 000), Buyuk Britaniya (199 000),
   Hong Kong (59 000), Avstraliya (299 000), Kanada (299 000),
-  yoki BARCHA KURSLAR PAKETI — 999 000 so'm (2 580 000 o'rniga, ~60% chegirma).
+  yoki BARCHA KURSLAR PAKETI — 990 000 so'm (2 580 000 o'rniga, ~60% chegirma).
 - Tur paketlar: Turkiya ($599), Vyetnam ($699), Yevropa ($1799), Yaponiya ($1250).
 - Premium konsultatsiya — hamkor mutaxassis bilan shaxsiy maslahat.
 ${historyBlock}
 MUHIM QOIDA — KURSLARNI REKLAMA QILISH:
 Deyarli har bir javobingiz oxirida, mavzuga mos keladigan aniq video kursni **qisqa va tabiiy** tarzda eslatib o'ting.
 Masalan: agar Shengen haqida so'ralsa — aniq qaysi davlat kerakligini so'rang yoki mos kursni ayting: Ispaniya/Fransiya/Germaniya (har biri 199 000 so'm) yoki Litva/Belgiya/Avstriya/Bolgariya/Lyuksemburg/Niderlandiya uchun Kombo kurs (199 000 so'm).
-Agar umumiy savol bo'lsa — "Barcha kurslar paketini ko'rib chiqing — 999 000 so'mga 9 ta davlat kursi, 40% chegirma bilan."
+Agar umumiy savol bo'lsa — "Barcha kurslar paketini ko'rib chiqing — 990 000 so'mga 9 ta davlat kursi, 40% chegirma bilan."
 Bu majburiy emas, lekin JUDA tavsiya etiladi — bizning maqsadimiz odamlarni kurslarga yo'naltirish.
 
 QOIDALAR:
@@ -1088,8 +1102,8 @@ async function triggerCoursePurchase(chatId, key, fromUser) {
     priceNumBase = PRO_PROMO.price;   // 600 000
     discountPct = 0;                  // aksiya narxi ustiga yana chegirma bermaymiz
     promoNote = lang === 'ru'
-      ? `\n\n🔥 Рекламная цена: ${PRO_PROMO.price.toLocaleString('ru-RU')} сум вместо 999 000 — только на этой неделе!`
-      : `\n\n🔥 Reklama narxi: ${PRO_PROMO.price.toLocaleString('ru-RU')} so‘m (999 000 o‘rniga) — faqat shu hafta!`;
+      ? `\n\n🔥 Рекламная цена: ${PRO_PROMO.price.toLocaleString('ru-RU')} сум вместо 990 000 — только на этой неделе!`
+      : `\n\n🔥 Reklama narxi: ${PRO_PROMO.price.toLocaleString('ru-RU')} so‘m (990 000 o‘rniga) — faqat shu hafta!`;
   }
   const finalPriceNum = discountPct ? Math.round(priceNumBase * (1 - discountPct / 100)) : priceNumBase;
   const displayPrice = (discountPct || promoNote) ? `${finalPriceNum.toLocaleString('ru-RU')} so'm` : course.price;
@@ -1165,7 +1179,7 @@ async function handleStartPayload(chatId, payload, fromUser) {
       return [{ text: `${label} — ${c.price}`, callback_data: `buy_course_${key}` }];
     });
     rows.push([{ text: t.to_menu, callback_data: 'menu' }]);
-    const head = `${t.courses_head}\n\n${SINGLE_COURSE_DESC[lang]}\n\n🔥 ${lang === 'ru' ? 'Пакет всех курсов' : 'Barcha kurslar paketi'} (999 000):\n${lang === 'ru' ? COURSE_CHANNELS.kurs_barchasi.descRu : COURSE_CHANNELS.kurs_barchasi.desc}`;
+    const head = `${t.courses_head}\n\n${SINGLE_COURSE_DESC[lang]}\n\n🔥 ${lang === 'ru' ? 'Пакет всех курсов' : 'Barcha kurslar paketi'} (990 000):\n${lang === 'ru' ? COURSE_CHANNELS.kurs_barchasi.descRu : COURSE_CHANNELS.kurs_barchasi.desc}`;
     return renderScreen(chatId, head, { inline_keyboard: rows });
   }
 
@@ -1329,7 +1343,7 @@ bot.on('callback_query', async (query) => {
   }
   if (data === 'setlang_uz' || data === 'setlang_ru') {
     const newLang = data === 'setlang_uz' ? 'uz' : 'ru';
-    userLang.set(chatId, newLang);
+    setUserLang(chatId, newLang);
 
     // Agar bu ro'yxatdan o'tishdan keyingi til tanlash bo'lsa —
     // xush kelibsiz + promo kod xabarini ko'rsatib, keyin davom etamiz
@@ -1489,6 +1503,7 @@ bot.on('callback_query', async (query) => {
   // ---- Boshqa imkoniyatlar ----
   if (data === 'other') {
     return renderScreen(chatId, t.other_head, { inline_keyboard: [
+      [{ text: '🌐 Til / Язык', callback_data: 'lang' }],
       [{ text: lang === 'ru' ? '👤 Мой профиль' : '👤 Mening profilim', callback_data: 'my_profile' }],
       [{ text: lang === 'ru' ? '🎁 Мой промокод' : '🎁 Mening promo kodim', callback_data: 'promo_show' }],
       [{ text: lang === 'ru' ? '✅ Ввести промокод' : '✅ Promo kod kiritish', callback_data: 'promo_enter' }],
