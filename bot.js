@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v38 (rus tili bazaga saqlanadi + til tugmasi; narx 990k; aksiya o\'chiq)';
+const BOT_VERSION = '2026-08-02-v39 (bosh menyuda BEPUL Saudiya darsligi -> to\'liq paketga jalb)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -77,6 +77,9 @@ function nextCard() {
 // Yopiq kurs kanali havolasi — to'lov tasdiqlangach mijozga shu yuboriladi.
 // SHU YERGA o'z yopiq kanalingiz havolasini qo'ying (masalan: 'https://t.me/+AbCdEf123')
 const PRIVATE_CHANNEL_LINK = process.env.PRIVATE_CHANNEL_LINK || 'https://t.me/+q2y1INy3ZbNmZWMy';
+
+// BEPUL Saudiya viza darsligi (lead magnet — blogerdan kelganlarni jalb qilish uchun)
+const SAUDI_FREE_LINK = process.env.SAUDI_FREE_LINK || 'https://t.me/+92U2iEtbl1sxOWRi';
 
 // To'lov chekidan keyin — mijozga havolani DARHOL beramiz (kanalda so'rovni admin tasdiqlaydi)
 async function sendCourseAccess(targetId) {
@@ -1051,6 +1054,7 @@ function mainMenuKeyboard(chatId) {
   const adminUrl = `https://t.me/${ADMIN_CONTACT_USERNAME.replace('@', '')}`;
   return {
     inline_keyboard: [
+      [{ text: (lang === 'ru' ? '🇸🇦 Виза в Саудию — БЕСПЛАТНЫЙ урок' : "🇸🇦 Saudiya vizasi — BEPUL darslik"), callback_data: 'saudi_free' }],
       [{ text: t.menu_chance, callback_data: 'chance' }],
       [{ text: t.menu_ai, callback_data: 'ai_menu' }],
       [{ text: t.menu_courses, callback_data: 'courses' }],
@@ -1334,6 +1338,17 @@ bot.on('callback_query', async (query) => {
   }
 
   if (data === 'menu') return sendMainMenu(chatId);
+
+  // ---- BEPUL Saudiya darsligi (lead magnet) → keyin to'liq paketga jalb ----
+  if (data === 'saudi_free') {
+    const txt = lang === 'ru'
+      ? `🎁 Держите БЕСПЛАТНЫЙ урок по визе в Саудовскую Аравию:\n${SAUDI_FREE_LINK}\n\nПонравилось? В полном пакете — 15 стран (США, Европа, Япония, Канада и др.) + все секреты дешёвых путешествий. Всего 990 000 сум, один раз и навсегда.`
+      : `🎁 Mana Saudiya Arabistoni vizasi bo'yicha BEPUL darslik:\n${SAUDI_FREE_LINK}\n\nYoqdimi? To'liq paketda — 15 davlat (AQSH, Yevropa, Yaponiya, Kanada va boshqalar) + arzon sayohat sirlari. Atigi 990 000 so'm, bir marta va umrbod.`;
+    return renderScreen(chatId, txt, { inline_keyboard: [
+      [{ text: lang === 'ru' ? '🎬 Полный пакет — 990 000' : "🎬 To'liq paket — 990 000", callback_data: 'buy_course_kurs_barchasi' }],
+      [{ text: t.to_menu, callback_data: 'menu' }],
+    ] });
+  }
 
   if (data === 'lang') {
     return renderScreen(chatId, "Tilni tanlang / Выберите язык:", { inline_keyboard: [[
