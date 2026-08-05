@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v39 (bosh menyuda BEPUL Saudiya darsligi -> to\'liq paketga jalb)';
+const BOT_VERSION = '2026-08-02-v40 (bepul Saudiya olganlarga 1 kundan keyin paket eslatmasi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -1341,6 +1341,8 @@ bot.on('callback_query', async (query) => {
 
   // ---- BEPUL Saudiya darsligi (lead magnet) → keyin to'liq paketga jalb ----
   if (data === 'saudi_free') {
+    const uSaudi = getUser(chatId);
+    if (!uSaudi.gotSaudiFree) { uSaudi.gotSaudiFree = true; uSaudi.saudiFreeAt = Date.now(); saveDB(chatId); }
     const txt = lang === 'ru'
       ? `🎁 Держите БЕСПЛАТНЫЙ урок по визе в Саудовскую Аравию:\n${SAUDI_FREE_LINK}\n\nПонравилось? В полном пакете — 15 стран (США, Европа, Япония, Канада и др.) + все секреты дешёвых путешествий. Всего 990 000 сум, один раз и навсегда.`
       : `🎁 Mana Saudiya Arabistoni vizasi bo'yicha BEPUL darslik:\n${SAUDI_FREE_LINK}\n\nYoqdimi? To'liq paketda — 15 davlat (AQSH, Yevropa, Yaponiya, Kanada va boshqalar) + arzon sayohat sirlari. Atigi 990 000 so'm, bir marta va umrbod.`;
@@ -2485,5 +2487,15 @@ process.on('uncaughtException', (err) => {
 
 // AVTOMATIK FOLLOW-UP O'CHIRILGAN (token tejash) — har mijozga faqat BIR MARTA yoziladi.
 // Kerak bo'lsa admin qo'lda /agent_followup bilan ishga tushiradi.
+
+// BEPUL Saudiya olganlarga bir marta paketni eslatish (kunduzi) — kam token, aniq nishon
+setInterval(async () => {
+  const hourTashkent = (new Date().getUTCHours() + 5) % 24;
+  if (hourTashkent < 9 || hourTashkent >= 21) return;
+  try {
+    const n = await vizaAgent.saudiReminderBatch(40);
+    if (n) notifyAdmins(`🎁 Saudiya eslatmasi: ${n} ta bepul olganga to'liq paket taklif qilindi.`);
+  } catch (e) { console.error('saudi reminder xatosi:', e.message); }
+}, 2 * 60 * 60 * 1000);
 
 console.log(`VizaAI bot ishga tushdi ✅ | Versiya: ${BOT_VERSION}`);
