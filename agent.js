@@ -245,6 +245,9 @@ QOIDALAR:
     const history = loadHistory(chatId);
     let firstText = userText || '';
     if (opts.firstTouch) firstText = (lang === 'ru' ? OUTREACH_RU : OUTREACH_UZ);
+    else if (opts.saudiPitch) firstText = (lang === 'ru'
+      ? "(Система: клиент взял БЕСПЛАТНЫЙ урок по визе в Саудию, но полный пакет ещё не купил. Напиши коротко и тепло: понравился ли урок, и что в полном пакете ещё 14 стран + секреты дешёвых путешествий — всего 990 000 сум. 1-2 предложения, без давления.)"
+      : "(Tizim: bu mijoz BEPUL Saudiya viza darsligini oldi, lekin to'liq paketni hali sotib olmadi. Unga QISQA va iliq yoz: bepul darslik yoqdimi deb so'ra, va to'liq paketda yana 14 davlat + arzon sayohat sirlari borligini, atigi 990 000 so'm ekanini ayt. 1-2 jumla, bosim yo'q.)");
     else if (opts.followup) firstText = followupHint(lang, opts.touch || 1);
     const messages = history.concat([{ role: 'user', content: firstText || '(salom)' }]);
 
@@ -286,7 +289,7 @@ QOIDALAR:
     }
 
     if (!finalText) finalText = lang === 'ru' ? 'Хорошо!' : 'Yaxshi!';
-    saveHistory(chatId, (opts.firstTouch || opts.followup) ? '' : userText, finalText);
+    saveHistory(chatId, (opts.firstTouch || opts.followup || opts.saudiPitch) ? '' : userText, finalText);
     return { text: finalText };
   }
 
@@ -348,7 +351,34 @@ QOIDALAR:
     return sent;
   }
 
-  return { runAgent, agentOutreach, outreachBatch, agentFollowup, followupBatch, TOOLS };
+  // ---------------- BEPUL Saudiya olganlarga bir marta paket taklifi ----------------
+  async function saudiReminder(chatId, fromUser) {
+    const r = await runAgent(chatId, '', { fromUser, saudiPitch: true });
+    return r.text;
+  }
+  async function saudiReminderBatch(limit = 40) {
+    const cutoff = Date.now() - 20 * 60 * 60 * 1000; // bepul olganidan ~20 soat o'tgan bo'lsin
+    const targets = Object.entries(usersDB).filter(([, u]) => {
+      if (!u.gotSaudiFree || u.saudiReminded) return false;                 // faqat bepul olgan, hali eslatilmagan
+      if ((u.purchases || []).some(p => p.status === 'confirmed')) return false; // sotib olmagan
+      if (u.state === 'human') return false;
+      if (!u.saudiFreeAt || u.saudiFreeAt > cutoff) return false;           // hali 20 soat o'tmagan
+      return true;
+    }).slice(0, limit);
+    let sent = 0;
+    for (const [chatId, u] of targets) {
+      try {
+        const text = await saudiReminder(chatId, { id: Number(chatId) });
+        if (bot) await bot.sendMessage(chatId, text);
+        u.saudiReminded = true; saveDB(chatId);
+        sent++;
+        await new Promise(r => setTimeout(r, 500));
+      } catch (e) { /* bloklagan bo'lishi mumkin */ }
+    }
+    return sent;
+  }
+
+  return { runAgent, agentOutreach, outreachBatch, agentFollowup, followupBatch, saudiReminder, saudiReminderBatch, TOOLS };
 }
 
 module.exports = { createAgent };
