@@ -24,7 +24,7 @@ function createAgent(deps) {
     const courseList = Object.entries(COURSE_CHANNELS)
       .map(([k, c]) => `${k} = ${c.name} (${c.price})`).join('\n');
     const promoBlock = (proPromo && proPromo())
-      ? `\n\n🔥 HOZIR REKLAMA AKSIYASI (faqat shu hafta!): "kurs_barchasi" paketi 999 000 emas — atigi 600 000 so'm.\nHar suhbatda buni eng kuchli ilinj sifatida ishlat: "Reklama narxi 600 ming, faqat shu hafta — keyin yana 999 ming bo'ladi." Shoshiltir (muddat tugayapti), lekin bosim o'tkazma.`
+      ? `\n\n🔥 HOZIR REKLAMA AKSIYASI (faqat shu hafta!): "kurs_barchasi" paketi 990 000 emas — atigi 600 000 so'm.\nHar suhbatda buni eng kuchli ilinj sifatida ishlat: "Reklama narxi 600 ming, faqat shu hafta — keyin yana 990 ming bo'ladi." Shoshiltir (muddat tugayapti), lekin bosim o'tkazma.`
       : '';
 
     // STATIC — hamma foydalanuvchi uchun bir xil (til + aksiyaga qarab) -> keshlanadi
