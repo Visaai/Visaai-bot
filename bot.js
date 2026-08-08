@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v46 (welcome narxi 600k ga tuzatildi)';
+const BOT_VERSION = '2026-08-02-v48 (chek kelsa darhol havola + admin ruxsatini kuting; admin kanalda tasdiqlaydi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -2236,28 +2236,14 @@ SHUBHA: <ha yoki yo'q — tahrirlangan/soxta ko'rinsa "ha">`,
       `👤 ${userLabel}\n🎬 ${purchase.name}\n💰 Kutilgan: ${expectedStr || expectedNum}\n💳 Karta: ${purchase.card || '?'}\n\n` +
       `🤖 AI: summa ${vSumma.toLocaleString('ru-RU')} · sana bugun: ${vBugun} · shubha: ${vShubha}\n/suhbat ${chatId}`;
 
-    if (autoOk) {
-      for (const aid of ADMIN_CHAT_IDS) {
-        try { await bot.sendPhoto(aid, fileId, { caption: (`✅ TO'LOV MOS — havola yuborildi\n\n` + baseCap).slice(0, 1000) }); }
-        catch (e) { notifyAdmins(`✅ To'lov mos (${chatId}). ${baseCap}`); }
-      }
-      await sendCourseAccess(chatId); // havola beriladi
-    } else {
-      // MOS EMAS — havola BERILMAYDI. Adminga tugma bilan (kerak bo'lsa qo'lda tasdiqlaydi)
-      const kb = { inline_keyboard: [[
-        { text: '✅ Baribir tasdiqla', callback_data: `paycheck_ok_${chatId}` },
-        { text: '❌ Rad etish', callback_data: `paycheck_no_${chatId}` },
-      ]] };
-      const cap = `⚠️ CHEK MOS EMAS — TEKSHIRING\nMuammo: ${problem.join('; ')}\n\n` + baseCap;
-      for (const aid of ADMIN_CHAT_IDS) {
-        try { await bot.sendPhoto(aid, fileId, { caption: cap.slice(0, 1000), reply_markup: kb }); }
-        catch (e) { notifyAdmins(cap); }
-      }
-      await sendContent(chatId, lang === 'ru'
-        ? 'Мы получили чек, но данные не совпали (сумма или дата). Пожалуйста, оплатите точную сумму и пришлите новый чек, или напишите админу.'
-        : "Chekni oldik, lekin ma'lumot mos kelmadi (summa yoki sana). Iltimos, aniq summani to'lab, yangi chek yuboring yoki admin bilan bog'laning.",
-        { reply_markup: backButton(chatId) });
+    // HOZIRCHA: chek kelsa DARHOL havola beramiz. Admin kanalda join-request'ni tasdiqlaydi (asosiy nazorat).
+    const flag = autoOk ? "✅ AI: to'lov mos ko'rinadi" : `⚠️ AI shubha: ${problem.join('; ')}`;
+    const cap = `💰 CHEK KELDI — mijozga havola berildi\n${flag}\nKanalda "qo'shilish so'rovi"ni tekshirib tasdiqlang.\n\n` + baseCap;
+    for (const aid of ADMIN_CHAT_IDS) {
+      try { await bot.sendPhoto(aid, fileId, { caption: cap.slice(0, 1000) }); }
+      catch (e) { notifyAdmins(cap); }
     }
+    await sendCourseAccess(chatId); // havola + "admin tez orada tasdiqlaydi" xabari ketadi
     return;
   }
 
