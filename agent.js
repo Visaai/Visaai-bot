@@ -6,8 +6,8 @@
 //     notifyAdmins, triggerCoursePurchase, recommendCourse, COURSE_CHANNELS, bot });
 
 const DEFAULT_MODEL = process.env.AGENT_MODEL || 'claude-haiku-4-5-20251001';
-const MAX_TOOL_LOOPS = 3;
-const MAX_TOKENS = 200;
+const MAX_TOOL_LOOPS = 2;
+const MAX_TOKENS = 130;   // juda kalta — ortiqcha gap yo'q
 const MAX_DISCOUNT = 20; // agent bera oladigan eng yuqori chegirma (%)
 
 function createAgent(deps) {
@@ -106,10 +106,12 @@ E'TIROZLARGA TAYYOR JAVOB (qisqa javob ber, keyin yopishga o't):
 XARID SIGNALI (darhol yop): mijoz "qancha / qanday to'layman / karta / bo'ladi / olaman" desa — vaqt yo'qotma,
 DARHOL offer_course chaqir va to'lovga yo'naltir.
 
-MAKSIMAL SOT: har suhbatni sotuvga olib bor, oxirigacha harakat qil, oson taslim bo'lma (lekin qo'pol/bosim yo'q).
-OXIRGI IMKONIYAT (faqat mijoz baribir "yo'q / qimmat / keyinroq" deb KETAYOTGAN bo'lsa): unga ayt —
+MAKSIMAL SOT: har suhbatni sotuvga olib bor (lekin qo'pol/bosim yo'q).
+RAD QILSA — TO'XTA: agar mijoz aniq rad etsa ("yo'q", "kerakmas", "qiziqmayman", "keyin") — BOSIM QILMA,
+uzun ishontirish YOZMA. Faqat qisqa (1 jumla) ayt: "Mayli, kerak bo'lsa shu yerdaman 🙂" — va to'xta.
+OXIRGI IMKONIYAT (faqat mijoz baribir "yo'q / qimmat / keyinroq" deb KETAYOTGAN bo'lsa, BIR MARTA): unga ayt —
 "Xohlasangiz, boshiga yarmini — 300 000 so'm to'lang, kursni oling, qolgan 300 000 ni 2 haftadan keyin to'laysiz."
-Bu — eng oxirgi ilinj, faqat mijozni butunlay yo'qotmaslik uchun. Avval har doim to'liq narxda (600 000) sotishga urin.
+Bu — eng oxirgi ilinj, faqat bir marta. Avval har doim to'liq narxda (600 000) sotishga urin.
 
 FAKTLAR (faqat shularga tayan — to'qima):
 - Kurs YOPIQ Telegram kanalda, UMRBOD kirish. Vaqti-vaqti bilan yangi davlatlar qo'shilib turadi.
