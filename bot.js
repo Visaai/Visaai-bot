@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-03-v52 (tejash: token 130, tool 2; rad qilsa agent to\'xtaydi, bosim yo\'q)';
+const BOT_VERSION = '2026-08-03-v53 (proaktiv outreach O\'CHIQ — AI faqat savolga javob beradi; sotuvni admin qiladi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -1371,11 +1371,7 @@ bot.on('callback_query', async (query) => {
         ? `Вы зарегистрированы ✅\n\n🎁 Ваш промокод (нажмите, чтобы скопировать):\n\`${u.promoCode}\`\n\nПоделитесь им с другом — вы оба получите скидку.`
         : `Ro'yxatdan o'tdingiz ✅\n\n🎁 Sizning promo kodingiz (bosib nusxalang):\n\`${u.promoCode}\`\n\nDo'stingiz bilan bo'lishing — ikkalangiz ham chegirma olasiz.`;
       await bot.sendMessage(chatId, welcomeBack, { parse_mode: 'Markdown' });
-      // Til tanlandi — agent DARHOL yozib, sotishni boshlaydi (navbat orqali, tekis)
-      const uu = usersDB[String(chatId)];
-      if (uu && !uu.agentOutreached && uu.state !== 'human') {
-        outreachQueue.push({ chatId, fromUser: query.from, readyAt: Date.now() });
-      }
+      // Proaktiv yozish o'chirilgan — AI faqat odam savol berganda javob beradi (pul tejash)
       return handleStartPayload(chatId, savedPendingPayload, query.from);
     }
     return sendMainMenu(chatId);
@@ -1882,7 +1878,9 @@ const vizaAgent = createAgent({
   proPromo: proPromoActive,
 });
 
-// Outreach navbati ishchisi — har 2 soniyada bittadan; bloklagan/yetib bo'lmaydiganga QAYTA URINMAYDI
+// PROAKTIV OUTREACH O'CHIRILGAN — agent o'zi hammaga yozmaydi (pul tejash).
+// AI faqat odam savol berganda javob beradi. Sotuvni admin qo'lda qiladi.
+// (Kerak bo'lsa qo'lda /agent_sell bilan ishga tushiriladi.)
 setInterval(async () => {
   const now = Date.now();
   const idx = outreachQueue.findIndex(it => it.readyAt <= now);
@@ -1890,40 +1888,21 @@ setInterval(async () => {
   const item = outreachQueue.splice(idx, 1)[0];
   const uu = usersDB[String(item.chatId)];
   if (!uu || uu.agentOutreached || uu.state === 'human') return;
-
   uu.outreachTries = (uu.outreachTries || 0) + 1;
-  // 2 martadan ko'p urinildi — voz kechamiz (behuda token sarflamaymiz)
   if (uu.outreachTries > 2) { uu.agentOutreached = true; saveDB(item.chatId); return; }
-
   let txt;
   try {
     txt = await vizaAgent.agentOutreach(item.chatId, item.fromUser);
   } catch (e) {
-    // API xatosi (rate-limit) — 60s dan keyin bir marta qayta (urinish hisoblandi)
     if (uu.outreachTries < 2) { item.readyAt = Date.now() + 60 * 1000; outreachQueue.push(item); }
     else { uu.agentOutreached = true; saveDB(item.chatId); }
     return;
   }
-  try {
-    await bot.sendMessage(item.chatId, txt);
-  } catch (e) {
-    // Yuborib bo'lmadi (odam botni bloklagan) — QAYTA URINMAYMIZ, token behuda ketmasin
-  }
-  uu.agentOutreached = true; saveDB(item.chatId); // urindik — endi qaytarmaymiz
+  try { await bot.sendMessage(item.chatId, txt); } catch (e) { /* bloklagan */ }
+  uu.agentOutreached = true; saveDB(item.chatId);
 }, 2000);
+// SWEEP O'CHIRILGAN (proaktiv yozish yo'q)
 
-// SWEEP — har 10 daqiqada: yozilmay qolganlarni topib qo'shamiz (2 marta urinilganlarni O'TKAZIB YUBORAMIZ)
-setInterval(() => {
-  const queued = new Set(outreachQueue.map(it => String(it.chatId)));
-  let added = 0;
-  for (const [id, u] of Object.entries(usersDB)) {
-    if (u.phone && !u.agentOutreached && u.state !== 'human' && (u.outreachTries || 0) < 2 && !queued.has(id)) {
-      outreachQueue.push({ chatId: Number(id), fromUser: { id: Number(id) }, readyAt: Date.now() });
-      added++;
-      if (added >= 200) break;
-    }
-  }
-}, 10 * 60 * 1000);
 
 // Admin hisoboti — HAR SOATDA (kunduzi): umumiy son + har bir faol mijoz haqida qisqacha
 setInterval(() => {
