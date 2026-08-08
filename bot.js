@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-03-v53 (proaktiv outreach O\'CHIQ — AI faqat savolga javob beradi; sotuvni admin qiladi)';
+const BOT_VERSION = '2026-08-03-v54 (AI prompt qisqa + toolsiz — har so\'rov bir necha barobar arzon)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
