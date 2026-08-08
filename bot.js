@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v41 (agentga to\'liq FAKTLAR/FAQ qo\'shildi — xatosiz ishlaydi)';
+const BOT_VERSION = '2026-08-02-v42 (narx 600k reklama aksiyasi YONIQ + har yangi mijoz haqida darhol admin xabari)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -119,7 +119,7 @@ const ADMIN_CONTACT_USERNAME_MD = ADMIN_CONTACT_USERNAME.replace(/_/g, '\\_');
 // Aksiya AVTOMATIK: 'from' sanadan 'until' sanagacha 990 000 o'rniga 600 000 so'm.
 // Chorshanba (5-avgust) o'zi yonadi, bir haftadan keyin o'zi o'chadi — qo'lda tegish shart emas.
 // ---------------------------------------------------------------
-const PRO_PROMO = { active: false, price: 600000, from: '2026-08-05', until: '2026-08-12' };
+const PRO_PROMO = { active: true, price: 600000, from: '2026-07-01', until: '2026-12-31' };
 function proPromoActive() {
   const today = new Date().toISOString().slice(0, 10);
   return PRO_PROMO.active && today >= PRO_PROMO.from && today <= PRO_PROMO.until;
@@ -2108,8 +2108,10 @@ bot.on('message', async (msg) => {
       ]] },
     });
 
-    // Katta oqim uchun: adminni har bir odam bilan bezovta qilmaymiz — sanaymiz, 2 soatlik xulosa yuboriladi
+    // Reklama vaqti — har yangi mijoz haqida adminga DARHOL xabar
     adminCounters.reg++;
+    const nu = usersDB[String(chatId)] || {};
+    notifyAdmins(`🆕 Yangi mijoz kirdi\n👤 ${nu.name || (msg.from && msg.from.first_name) || 'Ism yo\'q'} (@${(msg.from && msg.from.username) || 'username yo\'q'}, ID: ${chatId})\n📱 ${nu.phone || '—'}`);
 
     // Agentni outreach navbatiga qo'shamiz — 10 daqiqadan keyin, tekis sur'atda o'zi yozadi (spike'ga chidaydi)
     outreachQueue.push({ chatId, fromUser: msg.from, readyAt: Date.now() + 10 * 60 * 1000 });
