@@ -72,6 +72,14 @@ KURS NIMA BERADI (mijozga ISHTIYOQ bilan, foydasini bo'rttirib ayt):
 Ya'ni bu shunchaki kurs emas — chet elga chiqishning TO'LIQ yo'l xaritasi. Bir marta olib, umrbod foydalanasiz.
 Buni jonli, qiziqtirib, qiymatini bo'rttirib ayt (lekin yolg'on va'da berma).
 
+QIYMATNI NARXDAN OLDIN KO'RSAT: narxni aytishdan oldin nima olishini sana, keyin narxni "arzon" qilib ko'rsat. Masalan:
+🌍 15 davlat viza darsligi
+🤖 AI Visa Assistant
+📚 Video darsliklar
+📋 Hujjat chek-listlari
+🎁 Saudiya vizasi darsi (bepul)
+❌ 1 000 000 so'm → ✅ 600 000 so'm — faqat 1 hafta
+
 BIZDA BOR DAVLATLAR (faqat SHULARNI ayt, boshqasini TO'QIMA — Italiya, Koreya, Dubay va h.k. BIZDA YO'Q):
 AQSH, Fransiya, Ispaniya, Germaniya, Vengriya, Avstriya, Daniya, Lyuksemburg, Yaponiya, Gonkong, Kanada,
 Saudiya, Hindiston, Buyuk Britaniya (UK), Litva — hammasi TURISTIK viza darsligi va hammasi PRO paketda.
@@ -138,8 +146,8 @@ QOIDALAR:
     return blocks;
   }
 
-  const OUTREACH_UZ = "(Tizim: bu odam botdan ro'yxatdan o'tgan, lekin jim turibdi. Unga O'ZING birinchi bo'lib qisqa, iliq xabar yoz — tanish, qaysi davlatga borishni xohlashini so'ra, keyin mos kursni tabiiy taklif qila boshla.)";
-  const OUTREACH_RU = "(Система: человек зарегистрирован, но молчит. Напиши первым — тепло познакомься, спроси в какую страну хочет, затем начни предлагать подходящий курс.)";
+  const OUTREACH_UZ = "(Tizim: bu odam reklama orqali botga kirdi. Unga O'ZING birinchi bo'lib qisqa, iliq, JONLI xabar yoz: salomlash, 'reklama orqali keldingizmi?' deb so'ra, hozir maxsus 600 000 so'mlik aksiya (990 000 o'rniga, faqat shu hafta) va 🎁 BEPUL Saudiya vizasi darsi borligini ayt, va DARHOL suhbatga tort — 'qaysi davlat vizasi sizga qiziq?' deb so'ra. 2-3 jumla, iliq.)";
+  const OUTREACH_RU = "(Система: человек пришёл по рекламе. Напиши первым — коротко, тепло, живо: поздоровайся, спроси 'вы по рекламе пришли?', скажи что сейчас спец-акция 600 000 сум (вместо 990 000, только на этой неделе) и 🎁 БЕСПЛАТНЫЙ урок по визе в Саудию, и сразу вовлеки — спроси 'виза в какую страну вам интересна?'. 2-3 предложения, тепло.)";
   const FOLLOWUP_UZ = "(Tizim: bu mijoz avval siz bilan gaplashgan yoki kursni ko'rgan, lekin hali SOTIB OLMADI. Unga QAYTA iliq va qisqa yoz — bezovta qilmasdan turtki ber: savoli bormi, nima to'xtatyapti, yordam kerakmi.)";
   const FOLLOWUP_RU = "(Система: клиент уже общался или видел курс, но НЕ купил. Напиши ему ПОВТОРНО, тепло и коротко — без давления подтолкни: есть ли вопросы, что останавливает.)";
   // Bosqichli follow-up: 1 = yumshoq turtki, 2 = chegirma, 3+ = oxirgi imkon
@@ -348,7 +356,7 @@ QOIDALAR:
       // 2 kunda bir martadan ko'p follow-up qilmaymiz (arzon + bezovta qilmaydi)
       if (u.agentFollowupDate) {
         const daysSince = (Date.now() - new Date(u.agentFollowupDate + 'T00:00:00Z').getTime()) / 86400000;
-        if (daysSince < 2) return false;
+        if (daysSince < 1) return false;
       }
       return true;
     }).slice(0, limit);
