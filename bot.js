@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v44 (outreach: xato bo\'lsa qayta urinadi + sweep — hech kim yozilmay qolmaydi)';
+const BOT_VERSION = '2026-08-02-v45 (kuchli opener: aksiya+bepul Saudiya+davlat so\'raydi; qiymat oldin; follow-up qaytdi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -2522,5 +2522,15 @@ setInterval(async () => {
     if (n) notifyAdmins(`🎁 Saudiya eslatmasi: ${n} ta bepul olganga to'liq paket taklif qilindi.`);
   } catch (e) { console.error('saudi reminder xatosi:', e.message); }
 }, 2 * 60 * 60 * 1000);
+
+// FOLLOW-UP — sotib olmaganlarga agent qayta yozadi (reklama vaqti, kunduzi, har mijozga kuniga 1 marta, bosqichli)
+setInterval(async () => {
+  const hourTashkent = (new Date().getUTCHours() + 5) % 24;
+  if (hourTashkent < 9 || hourTashkent >= 21) return;
+  try {
+    const n = await vizaAgent.followupBatch(40);
+    if (n) notifyAdmins(`🔁 Follow-up: agent ${n} ta sotib olmaganga qayta yozdi.`);
+  } catch (e) { console.error('follow-up xatosi:', e.message); }
+}, 4 * 60 * 60 * 1000);
 
 console.log(`VizaAI bot ishga tushdi ✅ | Versiya: ${BOT_VERSION}`);
