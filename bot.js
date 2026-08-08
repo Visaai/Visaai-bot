@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v42 (narx 600k reklama aksiyasi YONIQ + har yangi mijoz haqida darhol admin xabari)';
+const BOT_VERSION = '2026-08-02-v43 (agent DARHOL yozadi + maksimal sotadi + 50/50 oxirgi ilinj)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -1371,6 +1371,11 @@ bot.on('callback_query', async (query) => {
         ? `Вы зарегистрированы ✅\n\n🎁 Ваш промокод (нажмите, чтобы скопировать):\n\`${u.promoCode}\`\n\nПоделитесь им с другом — вы оба получите скидку.`
         : `Ro'yxatdan o'tdingiz ✅\n\n🎁 Sizning promo kodingiz (bosib nusxalang):\n\`${u.promoCode}\`\n\nDo'stingiz bilan bo'lishing — ikkalangiz ham chegirma olasiz.`;
       await bot.sendMessage(chatId, welcomeBack, { parse_mode: 'Markdown' });
+      // Til tanlandi — agent DARHOL yozib, sotishni boshlaydi (navbat orqali, tekis)
+      const uu = usersDB[String(chatId)];
+      if (uu && !uu.agentOutreached && uu.state !== 'human') {
+        outreachQueue.push({ chatId, fromUser: query.from, readyAt: Date.now() });
+      }
       return handleStartPayload(chatId, savedPendingPayload, query.from);
     }
     return sendMainMenu(chatId);
@@ -2112,9 +2117,7 @@ bot.on('message', async (msg) => {
     adminCounters.reg++;
     const nu = usersDB[String(chatId)] || {};
     notifyAdmins(`🆕 Yangi mijoz kirdi\n👤 ${nu.name || (msg.from && msg.from.first_name) || 'Ism yo\'q'} (@${(msg.from && msg.from.username) || 'username yo\'q'}, ID: ${chatId})\n📱 ${nu.phone || '—'}`);
-
-    // Agentni outreach navbatiga qo'shamiz — 10 daqiqadan keyin, tekis sur'atda o'zi yozadi (spike'ga chidaydi)
-    outreachQueue.push({ chatId, fromUser: msg.from, readyAt: Date.now() + 10 * 60 * 1000 });
+    // Agent til tanlangach DARHOL yozadi (setlang ichida navbatga qo'shiladi)
 
     return;
   }
