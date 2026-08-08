@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-02-v43 (agent DARHOL yozadi + maksimal sotadi + 50/50 oxirgi ilinj)';
+const BOT_VERSION = '2026-08-02-v44 (outreach: xato bo\'lsa qayta urinadi + sweep — hech kim yozilmay qolmaydi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -1882,7 +1882,7 @@ const vizaAgent = createAgent({
   proPromo: proPromoActive,
 });
 
-// Outreach navbati ishchisi — har 1.2 soniyada bittadan yozadi (1000-1500 odam/kunga yetadi, limitga urilmaydi)
+// Outreach navbati ishchisi — har 2 soniyada bittadan (26/min limitga urilmaslik uchun tejamli sur'at)
 setInterval(async () => {
   const now = Date.now();
   const idx = outreachQueue.findIndex(it => it.readyAt <= now);
@@ -1894,8 +1894,28 @@ setInterval(async () => {
     const txt = await vizaAgent.agentOutreach(item.chatId, item.fromUser);
     await bot.sendMessage(item.chatId, txt);
     uu.agentOutreached = true; saveDB(item.chatId);
-  } catch (e) { /* bloklagan bo'lishi mumkin */ }
-}, 1200);
+  } catch (e) {
+    // Xato (rate-limit yoki API) — TASHLAMAYMIZ, biroz kutib qayta urinamiz (3 martagacha)
+    item.tries = (item.tries || 0) + 1;
+    if (item.tries <= 3) {
+      item.readyAt = Date.now() + 30 * 1000;   // 30 soniyadan keyin qayta
+      outreachQueue.push(item);
+    }
+  }
+}, 2000);
+
+// SWEEP — har 5 daqiqada: yozilmay qolganlarni topib, navbatga qo'shamiz (hech kim tushib qolmaydi)
+setInterval(() => {
+  const queued = new Set(outreachQueue.map(it => String(it.chatId)));
+  let added = 0;
+  for (const [id, u] of Object.entries(usersDB)) {
+    if (u.phone && !u.agentOutreached && u.state !== 'human' && !queued.has(id)) {
+      outreachQueue.push({ chatId: Number(id), fromUser: { id: Number(id) }, readyAt: Date.now() });
+      added++;
+      if (added >= 200) break; // bir martada ko'p emas
+    }
+  }
+}, 5 * 60 * 1000);
 
 // Admin hisoboti — HAR SOATDA (kunduzi): umumiy son + har bir faol mijoz haqida qisqacha
 setInterval(() => {
