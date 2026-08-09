@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-03-v54 (AI prompt qisqa + toolsiz — har so\'rov bir necha barobar arzon)';
+const BOT_VERSION = '2026-08-03-v55 (agent sotadi + kompakt prompt + himoyalar — maksimal tejamli)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -1371,7 +1371,11 @@ bot.on('callback_query', async (query) => {
         ? `Вы зарегистрированы ✅\n\n🎁 Ваш промокод (нажмите, чтобы скопировать):\n\`${u.promoCode}\`\n\nПоделитесь им с другом — вы оба получите скидку.`
         : `Ro'yxatdan o'tdingiz ✅\n\n🎁 Sizning promo kodingiz (bosib nusxalang):\n\`${u.promoCode}\`\n\nDo'stingiz bilan bo'lishing — ikkalangiz ham chegirma olasiz.`;
       await bot.sendMessage(chatId, welcomeBack, { parse_mode: 'Markdown' });
-      // Proaktiv yozish o'chirilgan — AI faqat odam savol berganda javob beradi (pul tejash)
+      // Til tanlandi — agent DARHOL yozadi (navbat orqali; bloklaganga qayta urinmaydi, bir marta)
+      const uu = usersDB[String(chatId)];
+      if (uu && !uu.agentOutreached && uu.state !== 'human') {
+        outreachQueue.push({ chatId, fromUser: query.from, readyAt: Date.now() });
+      }
       return handleStartPayload(chatId, savedPendingPayload, query.from);
     }
     return sendMainMenu(chatId);
