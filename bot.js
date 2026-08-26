@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-03-v55 (agent sotadi + kompakt prompt + himoyalar — maksimal tejamli)';
+const BOT_VERSION = '2026-08-03-v56 (narx 999k; Jahongir eksperti kursi; proaktiv o\'chiq — AI faqat savolga javob)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -119,7 +119,7 @@ const ADMIN_CONTACT_USERNAME_MD = ADMIN_CONTACT_USERNAME.replace(/_/g, '\\_');
 // Aksiya AVTOMATIK: 'from' sanadan 'until' sanagacha 990 000 o'rniga 600 000 so'm.
 // Chorshanba (5-avgust) o'zi yonadi, bir haftadan keyin o'zi o'chadi — qo'lda tegish shart emas.
 // ---------------------------------------------------------------
-const PRO_PROMO = { active: true, price: 600000, from: '2026-07-01', until: '2026-12-31' };
+const PRO_PROMO = { active: false, price: 600000, from: '2026-07-01', until: '2026-12-31' };
 function proPromoActive() {
   const today = new Date().toISOString().slice(0, 10);
   return PRO_PROMO.active && today >= PRO_PROMO.from && today <= PRO_PROMO.until;
@@ -319,7 +319,7 @@ function setUserLang(chatId, lang) {
 
 const T = {
   uz: {
-    welcome: "Assalomu alaykum! VizaAI botiga xush kelibsiz 👋\n\nBu AI botda siz nimalar qila olasiz:\n\n✅ Viza olish imkoniyatingizni AI orqali aniqlash\n✅ Hujjatlaringizni AI yordamida tekshirish\n✅ Har bir davlat uchun kerakli hujjatlar ro'yxatini topish\n✅ Sayohatda foydali bo'ladigan barcha lifehacklarni olish\n\n🎁 Saudiya vizasi darsi — BEPUL!\n❌ 1 000 000 so'm  ✅ 600 000 so'm — faqat shu hafta!\n\nBoshlash uchun kerakli tugmani bosing:",
+    welcome: "Assalomu alaykum! VizaAI botiga xush kelibsiz 👋\n\nBu AI botda siz nimalar qila olasiz:\n\n✅ Viza olish imkoniyatingizni AI orqali aniqlash\n✅ Hujjatlaringizni AI yordamida tekshirish\n✅ Har bir davlat uchun kerakli hujjatlar ro'yxatini topish\n✅ Sayohatda foydali bo'ladigan barcha lifehacklarni olish\n\n🎁 Saudiya vizasi darsi — BEPUL!\n🎓 Viza eksperti Jahongir kursi — 999 000 so'm (umrbod)\n\nBoshlash uchun kerakli tugmani bosing:",
     menu_chance: "🧠 Viza imkoniyati testi",
     menu_services: "🗂️ Viza xizmatlari",
     menu_docs: "📸 Hujjatni AI tekshirish",
@@ -363,7 +363,7 @@ const T = {
     chance_cta: "\n\n💡 Profilingizni kuchaytirish uchun mos video kursimiz bor — \"Video darsliklar\" bo'limini ko'ring!",
   },
   ru: {
-    welcome: "Здравствуйте! Добро пожаловать в бот VizaAI 👋\n\nЧто вы можете делать в этом AI-боте:\n\n✅ Узнать свои шансы на визу через AI\n✅ Проверить документы с помощью AI\n✅ Найти список нужных документов по каждой стране\n✅ Получить все полезные лайфхаки для путешествий\n\n🔥 СУПЕР-ПРЕДЛОЖЕНИЕ: за 600 000 сум вместо 1 000 000 — только на этой неделе!\n\nНажмите нужную кнопку, чтобы начать:",
+    welcome: "Здравствуйте! Добро пожаловать в бот VizaAI 👋\n\nЧто вы можете делать в этом AI-боте:\n\n✅ Узнать свои шансы на визу через AI\n✅ Проверить документы с помощью AI\n✅ Найти список нужных документов по каждой стране\n✅ Получить все полезные лайфхаки для путешествий\n\n🎓 Курс эксперта Джахонгира — 999 000 сум (навсегда)\n\nНажмите нужную кнопку, чтобы начать:",
     menu_chance: "🧠 Тест визовых шансов",
     menu_services: "🗂️ Визовые услуги",
     menu_docs: "📸 Проверка документа AI",
@@ -554,7 +554,7 @@ const COURSE_CHANNELS = {
   kurs_kanada:     { name: 'Kanada visitor vizasi',             nameRu: 'Виза посетителя Канады',          price: '349 000 so‘m', link: 'HAVOLA_BU_YERGA_KANADA' },
   kurs_barchasi:   {
     name: 'Barcha video darsliklar paketi', nameRu: 'Пакет всех видеокурсов',
-    price: '990 000 so‘m', link: 'HAVOLA_BU_YERGA_BARCHASI',
+    price: '999 000 so‘m', link: 'HAVOLA_BU_YERGA_BARCHASI',
     desc: `Paketga kiradi:
 🎓 12-15 davlat bo'yicha to'liq viza darsliklari
 ✈️ Eng arzon aviabilet olish sirlari
@@ -1371,11 +1371,7 @@ bot.on('callback_query', async (query) => {
         ? `Вы зарегистрированы ✅\n\n🎁 Ваш промокод (нажмите, чтобы скопировать):\n\`${u.promoCode}\`\n\nПоделитесь им с другом — вы оба получите скидку.`
         : `Ro'yxatdan o'tdingiz ✅\n\n🎁 Sizning promo kodingiz (bosib nusxalang):\n\`${u.promoCode}\`\n\nDo'stingiz bilan bo'lishing — ikkalangiz ham chegirma olasiz.`;
       await bot.sendMessage(chatId, welcomeBack, { parse_mode: 'Markdown' });
-      // Til tanlandi — agent DARHOL yozadi (navbat orqali; bloklaganga qayta urinmaydi, bir marta)
-      const uu = usersDB[String(chatId)];
-      if (uu && !uu.agentOutreached && uu.state !== 'human') {
-        outreachQueue.push({ chatId, fromUser: query.from, readyAt: Date.now() });
-      }
+      // Proaktiv yozish O'CHIQ — agent har kirganga majburan yozmaydi, faqat savolga javob beradi
       return handleStartPayload(chatId, savedPendingPayload, query.from);
     }
     return sendMainMenu(chatId);
