@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-03-v57 (narx 990 000 qat\'iy; chegirma butunlay o\'chirildi)';
+const BOT_VERSION = '2026-08-03-v58 (bosh menyu tepasida "Kurs uchun bog\'lanish" tugmasi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -1052,6 +1052,7 @@ function mainMenuKeyboard(chatId) {
   const adminUrl = `https://t.me/${ADMIN_CONTACT_USERNAME.replace('@', '')}`;
   return {
     inline_keyboard: [
+      [{ text: (lang === 'ru' ? '📞 Связаться по курсу' : '📞 Kurs uchun bog\'lanish'), url: adminUrl }],
       [{ text: (lang === 'ru' ? '🇸🇦 Виза в Саудию — БЕСПЛАТНЫЙ урок' : "🇸🇦 Saudiya vizasi — BEPUL darslik"), callback_data: 'saudi_free' }],
       [{ text: t.menu_chance, callback_data: 'chance' }],
       [{ text: t.menu_ai, callback_data: 'ai_menu' }],
