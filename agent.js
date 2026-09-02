@@ -28,9 +28,9 @@ function createAgent(deps) {
       : '';
 
     // STATIC — hamma foydalanuvchi uchun bir xil (til + aksiyaga qarab) -> keshlanadi
-    const staticText = `Sen "VizaAI" (@VisaAi_Uz_Bot) savdo konsultantisan. Vazifang: turistik viza kursini SOTISH. ${langName} tilida, JONLI va KALTA yoz (1-2 jumla, uzun yozma).
+    const staticText = `Sen "VizaAI" (@VisaAi_Uz_Bot) yordamchisisan. Kurs muallifi - viza eksperti JAHONGIR. Odamlarning savollariga javob ber va kursni tanishtir. ${langName} tilida, JONLI va KALTA yoz (1-2 jumla, uzun yozma).
 
-MAHSULOT: "barcha kurslar paketi" - 600 000 so'm (990 000 o'rniga, shu hafta aksiya). Yopiq Telegram kanal, umrbod.
+MAHSULOT: viza eksperti Jahongirning "barcha kurslar paketi" kursi - 990 000 so'm. Yopiq Telegram kanal, umrbod.
 ICHIDA: 15 davlat (AQSH, Fransiya, Ispaniya, Germaniya, Vengriya, Avstriya, Daniya, Lyuksemburg, Yaponiya, Gonkong, Kanada, Saudiya, Hindiston, UK, Litva) - hujjat/anketa/suhbat/moliya + arzon aviabilet/mehmonxona/eSIM + TOP 50 lifehack.
 FAKT: har davlatga 1-2 soat yetadi, ingliz tili shart emas, viza kafolatlanmaydi (halol ayt), pul qaytarilmaydi (so'ralsa).
 YO'Q: ishchi/student viza, migratsiya, alohida davlat kursi, bizda yo'q davlat (Italiya/Koreya/Dubay) - "faqat turistik viza darsligi" deb ayt.
@@ -38,9 +38,9 @@ YO'Q: ishchi/student viza, migratsiya, alohida davlat kursi, bizda yo'q davlat (
 SOTISH:
 1) Iliq tanish, qaysi davlat qiziqishini so'ra.
 2) KUTMA - davlatni bilgach qiymatni qisqa sana va DARHOL 'offer_course' chaqirib kartani ko'rsat. "Bizda bor" deb to'xtama.
-3) "qimmat/o'ylayman" desa - 'give_discount' (10-20%) va yop. Muddat cheklanganini eslat.
+3) "qimmat/o'ylayman" desa - qiymatini qayta tushuntir. CHEGIRMA YO'Q, narx qat'iy 990 000 so'm. 
 4) Aniq RAD etsa ("yo'q/kerakmas") - BOSIM QILMA, "mayli, kerak bo'lsa shu yerdaman" deb TO'XTA (uzun yozma).
-Narxni o'zing aytaverma - 'offer_course' ko'rsatadi. To'lovdan keyin chekni shu botga yuborsin.`
+Narx qat'iy 990 000 so'm - CHEGIRMA YO'Q, chegirma haqida gapirma. Narxni 'offer_course' ko'rsatadi. To'lovdan keyin chekni shu botga yuborsin.`
 
     // DYNAMIC — har foydalanuvchiga xos (keshlanmaydi, lekin kichik)
     const known = [];
@@ -69,11 +69,11 @@ Narxni o'zing aytaverma - 'offer_course' ko'rsatadi. To'lovdan keyin chekni shu 
   function followupHint(lang, touch) {
     if (lang === 'ru') {
       if (touch >= 3) return "(Система: последний контакт. Мягко создай срочность — цена/предложение ограничены, сегодня последний шанс. Предложи оформить сейчас.)";
-      if (touch === 2) return "(Система: клиент всё ещё не купил. Предложи небольшую скидку через give_discount и попробуй закрыть сегодня.)";
+      if (touch === 2) return "(Система: клиент ещё не купил. Тепло напомни о курсе и предложи оформить. Скидок нет, цена 990 000.)";
       return FOLLOWUP_RU;
     }
     if (touch >= 3) return "(Tizim: oxirgi murojaat. Yumshoq shoshilinch — narx/taklif cheklangan, bugun oxirgi imkon. Hozir rasmiylashtirishni taklif qil.)";
-    if (touch === 2) return "(Tizim: mijoz hali olmadi. give_discount bilan kichik chegirma taklif qil va bugun yopishga harakat qil.)";
+    if (touch === 2) return "(Tizim: mijoz hali olmadi. Iliq eslatib, kursni taklif qil. Chegirma yo'q, narx 990 000.)";
     return FOLLOWUP_UZ;
   }
 
@@ -101,15 +101,6 @@ Narxni o'zing aytaverma - 'offer_course' ko'rsatadi. To'lovdan keyin chekni shu 
       },
     },
     {
-      name: 'give_discount',
-      description: "Mijoz ikkilansa yoki 'qimmat' desa — cheklangan chegirma berish (5–20%). Bugungi kunga amal qiladi. Keyin offer_course chaqir.",
-      input_schema: {
-        type: 'object',
-        properties: { percent: { type: 'integer', description: '5 dan 20 gacha' } },
-        required: ['percent'],
-      },
-    },
-    {
       name: 'handoff_to_human',
       description: "Suhbatni jonli operatorga (adminga) uzatish.",
       input_schema: { type: 'object', properties: { reason: { type: 'string' } } },
@@ -131,12 +122,8 @@ Narxni o'zing aytaverma - 'offer_course' ko'rsatadi. To'lovdan keyin chekni shu 
     }
 
     if (name === 'give_discount') {
-      let pct = parseInt(args.percent, 10) || 0;
-      pct = Math.max(5, Math.min(MAX_DISCOUNT, pct));
-      const today = new Date().toISOString().slice(0, 10);
-      u.activeDiscount = { percent: pct, expiresAt: today };
-      saveDB();
-      return `${pct}% chegirma BUGUNGA faollashtirildi. Endi mijoz kurs sotib olsa, narx avtomatik ${pct}% tushadi. Mijozga shu chegirmani ayt va DARHOL offer_course chaqir.`;
+      // CHEGIRMA O'CHIRILGAN — narx qat'iy 990 000
+      return "Chegirma yo'q. Narx qat'iy 990 000 so'm. Mijozga qiymatini tushuntir va offer_course chaqir.";
     }
 
     if (name === 'offer_course') {
