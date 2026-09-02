@@ -19,7 +19,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Har safar yangi bot.js olganingizda, shu sanani /version orqali tekshiring —
 // agar eski sana ko'rinsa, demak Render hali eng so'nggi kodni yuklamagan.
-const BOT_VERSION = '2026-08-03-v56 (narx 999k; Jahongir eksperti kursi; proaktiv o\'chiq — AI faqat savolga javob)';
+const BOT_VERSION = '2026-08-03-v57 (narx 990 000 qat\'iy; chegirma butunlay o\'chirildi)';
 const botStartedAt = new Date().toLocaleString('uz-UZ');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -319,7 +319,7 @@ function setUserLang(chatId, lang) {
 
 const T = {
   uz: {
-    welcome: "Assalomu alaykum! VizaAI botiga xush kelibsiz 👋\n\nBu AI botda siz nimalar qila olasiz:\n\n✅ Viza olish imkoniyatingizni AI orqali aniqlash\n✅ Hujjatlaringizni AI yordamida tekshirish\n✅ Har bir davlat uchun kerakli hujjatlar ro'yxatini topish\n✅ Sayohatda foydali bo'ladigan barcha lifehacklarni olish\n\n🎁 Saudiya vizasi darsi — BEPUL!\n🎓 Viza eksperti Jahongir kursi — 999 000 so'm (umrbod)\n\nBoshlash uchun kerakli tugmani bosing:",
+    welcome: "Assalomu alaykum! VizaAI botiga xush kelibsiz 👋\n\nBu AI botda siz nimalar qila olasiz:\n\n✅ Viza olish imkoniyatingizni AI orqali aniqlash\n✅ Hujjatlaringizni AI yordamida tekshirish\n✅ Har bir davlat uchun kerakli hujjatlar ro'yxatini topish\n✅ Sayohatda foydali bo'ladigan barcha lifehacklarni olish\n\n🎁 Saudiya vizasi darsi — BEPUL!\n🎓 Viza eksperti Jahongir kursi — 990 000 so'm (umrbod)\n\nBoshlash uchun kerakli tugmani bosing:",
     menu_chance: "🧠 Viza imkoniyati testi",
     menu_services: "🗂️ Viza xizmatlari",
     menu_docs: "📸 Hujjatni AI tekshirish",
@@ -363,7 +363,7 @@ const T = {
     chance_cta: "\n\n💡 Profilingizni kuchaytirish uchun mos video kursimiz bor — \"Video darsliklar\" bo'limini ko'ring!",
   },
   ru: {
-    welcome: "Здравствуйте! Добро пожаловать в бот VizaAI 👋\n\nЧто вы можете делать в этом AI-боте:\n\n✅ Узнать свои шансы на визу через AI\n✅ Проверить документы с помощью AI\n✅ Найти список нужных документов по каждой стране\n✅ Получить все полезные лайфхаки для путешествий\n\n🎓 Курс эксперта Джахонгира — 999 000 сум (навсегда)\n\nНажмите нужную кнопку, чтобы начать:",
+    welcome: "Здравствуйте! Добро пожаловать в бот VizaAI 👋\n\nЧто вы можете делать в этом AI-боте:\n\n✅ Узнать свои шансы на визу через AI\n✅ Проверить документы с помощью AI\n✅ Найти список нужных документов по каждой стране\n✅ Получить все полезные лайфхаки для путешествий\n\n🎓 Курс эксперта Джахонгира — 990 000 сум (навсегда)\n\nНажмите нужную кнопку, чтобы начать:",
     menu_chance: "🧠 Тест визовых шансов",
     menu_services: "🗂️ Визовые услуги",
     menu_docs: "📸 Проверка документа AI",
@@ -554,7 +554,7 @@ const COURSE_CHANNELS = {
   kurs_kanada:     { name: 'Kanada visitor vizasi',             nameRu: 'Виза посетителя Канады',          price: '349 000 so‘m', link: 'HAVOLA_BU_YERGA_KANADA' },
   kurs_barchasi:   {
     name: 'Barcha video darsliklar paketi', nameRu: 'Пакет всех видеокурсов',
-    price: '999 000 so‘m', link: 'HAVOLA_BU_YERGA_BARCHASI',
+    price: '990 000 so‘m', link: 'HAVOLA_BU_YERGA_BARCHASI',
     desc: `Paketga kiradi:
 🎓 12-15 davlat bo'yicha to'liq viza darsliklari
 ✈️ Eng arzon aviabilet olish sirlari
@@ -632,11 +632,9 @@ VIZAAI HAQIDA:
 - Tur paketlar: Turkiya ($599), Vyetnam ($699), Yevropa ($1799), Yaponiya ($1250).
 - Premium konsultatsiya — hamkor mutaxassis bilan shaxsiy maslahat.
 ${historyBlock}
-MUHIM QOIDA — KURSLARNI REKLAMA QILISH:
-Deyarli har bir javobingiz oxirida, mavzuga mos keladigan aniq video kursni **qisqa va tabiiy** tarzda eslatib o'ting.
-Masalan: agar Shengen haqida so'ralsa — aniq qaysi davlat kerakligini so'rang yoki mos kursni ayting: Ispaniya/Fransiya/Germaniya (har biri 199 000 so'm) yoki Litva/Belgiya/Avstriya/Bolgariya/Lyuksemburg/Niderlandiya uchun Kombo kurs (199 000 so'm).
-Agar umumiy savol bo'lsa — "Barcha kurslar paketini ko'rib chiqing — 990 000 so'mga 9 ta davlat kursi, 40% chegirma bilan."
-Bu majburiy emas, lekin JUDA tavsiya etiladi — bizning maqsadimiz odamlarni kurslarga yo'naltirish.
+MUHIM QOIDA — KURSNI ESLATISH:
+Javobingiz oxirida qisqa va tabiiy tarzda "barcha kurslar paketi"ni eslatib o'ting — viza eksperti Jahongirning kursi, 990 000 so'm, 15 davlat + arzon sayohat sirlari. CHEGIRMA YO'Q, narx qat'iy. Alohida davlat kursi yo'q.
+Bu majburiy emas, lekin tavsiya etiladi — maqsad odamlarni kursga yo'naltirish.
 
 QOIDALAR:
 - Viza kafolatlanishi haqida HECH QACHON va'da bermang.
@@ -971,7 +969,7 @@ function detectMentionedCourse(replyText) {
     [['hong kong', 'гонконг'], 'kurs_hongkong'],
     [['avstraliya', 'австрал'], 'kurs_avstraliya'],
     [['kanada', 'канад'], 'kurs_kanada'],
-    [['barcha kurslar', 'barcha video darslik', 'пакет всех', '999'], 'kurs_barchasi'],
+    [['barcha kurslar', 'barcha video darslik', 'пакет всех', '990'], 'kurs_barchasi'],
   ];
   for (const [keywords, key] of keywordMap) {
     if (keywords.some(kw => lower.includes(kw))) return key;
